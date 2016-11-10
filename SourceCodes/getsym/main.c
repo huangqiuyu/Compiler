@@ -87,15 +87,13 @@ char getch()
         }
         else
         {
-            while(linebuf[0]=='\0')
+            if(linebuf[0]=='\0')
             {
-                if((gets(linebuf))==NULL)
-                {
-                    isFileEnd = TRUE;
-                    printf("read the end of file\n");
-                    return EOF;////////////
-                }
+                linebuf[0]='\n';
+                linebuf[1]='\0';
+
             }
+
             lineIndex=0;
             return linebuf[lineIndex++];
         }
@@ -482,7 +480,7 @@ void printgetsym()
                 printf("TIMES\t*\n");
                 break;
             case DIVI:
-                printf("DIVI\t\\\n");
+                printf("DIVI\t/\n");
                 break;
             case LSS:
                 printf("LSS\t<\n");
