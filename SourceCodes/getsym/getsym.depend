@@ -1,0 +1,6 @@
+# depslib dependency file v1.0
+1478734434 source:c:\users\forever\desktop\compiler\compiler\11_10\getsym\main.c
+	<stdio.h>
+	<stdlib.h>
+	<malloc.h>
+
