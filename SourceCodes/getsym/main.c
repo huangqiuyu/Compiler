@@ -50,8 +50,9 @@
 
 #define MAXPATH 60  //the string of file path's max size 输入文件的路径字符串的最大值
 #define MAXLS   1000 //max one line size of input file 输入文件中一行的字符数的最大值
-#define MAXIDS  50  //max size of identifier 一个标识符长度的最大值
+#define MAXIDS  20  //max size of identifier 一个标识符长度的最大值
 #define MAXSTR  100 //max size of output string 输出字符串的最大长度
+#define MAXTAB  10000   //max size of table 符号表的最大长度
 
 char* file; //= (char*)malloc(sizeof(char)*MAXPATH);//file of input
 
@@ -68,7 +69,17 @@ char str[MAXSTR];   //last output string read 最近一次读入的字符串
 
 int isFileEnd;
 
-void error()
+//table 符号表
+struct{
+    char name[20];
+    int obj;   //constant variable function
+    int type;   //int char arrays
+
+
+
+}table[MAXT];
+
+void error(int i)
 {
     printf("error!!!!\n");
 }
@@ -551,6 +562,347 @@ void printgetsym()
 
 
 }
+
+
+
+
+void constdec()
+{
+
+}
+
+void vardec()
+{
+
+}
+
+void funcdecic()
+{
+
+}
+
+void funcdecvo()
+{
+
+}
+
+
+
+void mixsta()
+{
+
+}
+
+void statements()
+{
+
+}
+
+void statemt()
+{
+
+}
+
+void ifsta()
+{
+
+}
+
+void loopsta()
+{
+
+}
+
+
+void callsta()
+{
+
+}
+
+void assignsta()
+{
+
+}
+
+void readsta()
+{
+
+}
+
+void writesta()
+{
+
+}
+
+void returnsta()
+{
+
+}
+
+void expression()
+{
+
+}
+
+void term()
+{
+
+}
+
+void factor()
+{
+
+}
+
+void isint()
+{
+
+}
+
+void vartopro()
+{
+    if(symbol==COMMA)
+    {
+        getsym();
+        if(symbol==IDEN)
+        {
+            getsym();
+            vartopro();
+        }
+        else
+        {
+            error(2);
+        }
+
+    }
+
+    if(symbol==LBKET)
+    {
+        getsym();
+        if(symbol==NUMBER)
+        {
+            if(num==0)
+            {
+                num = 10;
+                error(4);
+            }
+            getsym();
+
+            if(symbol==RBKET)
+            {
+                getsym();
+                if(symbol==COMMA)
+                {
+                    getsym();
+                    if(symbol==IDEN)
+                    {
+                        getsym();
+                        vartopro();
+                    }
+                    else
+                    {
+                        error(2);
+                    }
+                }
+
+            }
+            else
+            {
+                error(5);
+            }
+        }
+        else
+        {
+            error(3);
+        }
+    }
+
+    if(symbol==SEMICOLON)
+    {
+        getsym();
+        if(symbol==INTSYM||symbol==CHARSYM)
+        {
+            getsym();
+            if(symbol==IDEN)
+            {
+                getsym();
+                if(symbol==COMMA||symbol==SEMICOLON||symbol==LBKET)
+                {
+                    vartopro();
+                }
+
+                if(symbol==LPAREN)
+                {
+                    fictopro();
+                }
+            }
+
+            else
+            {
+                error(1);
+            }
+        }
+    }
+
+    else
+    {
+        error(6);
+    }
+}
+
+void parameter()
+{
+    if(symbol==INTSYM||symbol==CHARSYM)
+    {
+        getsym();
+        if(symbol==IDEN)
+        {
+            getsym();
+            if(symbol==COMMA)
+            {
+                getsym();
+                parameter();
+            }
+        }
+        else
+        {
+            error(1);
+        }
+    }
+    else
+    {
+        error(8);
+    }
+}
+
+void fictopro()
+{
+    if(symbol==LPAREN)
+    {
+        getsym();
+        if(symbol==INTSYM||symbol==CHARSYM)
+        {
+            parameter();
+        }
+
+        if(symbol==RPAREN)
+        {
+            getsym();
+            if(symbol==LBRACE)
+            {
+                mixsta();
+                getsym();
+                if(symbol==RBRACE)
+                {
+                    getsym();
+                    if(symbol==INTSYM||CHARSYM)
+                    {
+                        getsym();
+                        if(symbol==IDEN)
+                        {
+                            getsym();
+                            fictopro();
+                        }
+                        else
+                        {
+                            error(1);
+                        }
+                    }
+                    else if(symbol==VOIDSYM)
+                    {
+                        getsym();
+                        if(symbol==IDEN)
+                        {
+                            fvotopro();
+                        }
+                    }
+                    else
+                    {
+                        error(12);
+                    }
+                }
+                else
+                {
+                    error(11);
+                }
+            }
+            else
+            {
+                error(10);
+            }
+        }
+        else
+        {
+            error(9);
+        }
+    }
+
+    else
+    {
+        error(7);
+    }
+}
+
+void fvotopro()
+{
+    if(symbol==IDEN)
+    {
+        getsym();
+        fictopro();
+    }
+    else
+    {
+        error(13);
+    }
+}
+
+
+void ismain()
+{
+    if(symbol==MAINSYM)
+    {
+
+    }
+    else
+    {
+        error(14);
+    }
+}
+
+//注意声明的顺序
+void program()
+{
+    getsym();
+    if(symbol==CONSTSYM)
+    {
+        constdec();
+    }
+    if(symbol==INTSYM||symbol==CHARSYM)
+    {
+        getsym();
+        if(symbol==IDEN)
+        {
+            getsym();
+            if(symbol==COMMA||symbol==SEMICOLON||symbol==LBKET)
+            {
+                vartopro();
+            }
+
+            if(symbol==LPAREN)
+            {
+                fictopro();
+            }
+        }
+
+        else
+        {
+            error(1);
+        }
+    }
+}
+
+
+
 
 int main()
 {
