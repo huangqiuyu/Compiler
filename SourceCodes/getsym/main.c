@@ -147,7 +147,6 @@ char getch()
         {
 
             isFileEnd = TRUE;
-            printf("read the end of file\n");
             return EOF;////////////
         }
         else
@@ -187,6 +186,9 @@ void getsym()
     int i=0,j=0;
     char c;
     c=getch();
+    if(isFileEnd==TRUE)
+        return;
+
     while(c==' '||c=='\n'||c=='\t')
     {
         c=getch();
@@ -210,6 +212,8 @@ void getsym()
             }
             id[i++]=c;
             c=getch();
+			if(isFileEnd==TRUE)
+				return;
         }
         id[i]='\0';
         goback();
@@ -280,6 +284,8 @@ void getsym()
         if(c=='0')
         {
             c = getch();
+			if(isFileEnd==TRUE)
+				return;
             if(c>='0'&&c<='9')
             {
                 error(22);
@@ -288,6 +294,8 @@ void getsym()
             {
                 num = num*10+(c-'0');
                 c = getch();
+				if(isFileEnd==TRUE)
+					return;
             }
         }
         else
@@ -296,6 +304,8 @@ void getsym()
             {
                 num = num*10+(c-'0');
                 c = getch();
+				if(isFileEnd==TRUE)
+					return;
             }
         }
         goback();
@@ -324,6 +334,9 @@ void getsym()
 
             case '<':
                 c = getch();
+				if(isFileEnd==TRUE)
+					return;
+
                 if(c=='=')
                     symbol = LEQ;
                 else
@@ -335,6 +348,9 @@ void getsym()
 
             case '>':
                 c = getch();
+				if(isFileEnd==TRUE)
+					return;
+
                 if(c=='=')
                     symbol = GEQ;
                 else
@@ -346,6 +362,9 @@ void getsym()
 
             case '!':
                 c = getch();
+				if(isFileEnd==TRUE)
+					return;
+
                 if(c=='=')
                     symbol = NEQ;
                 else
@@ -357,6 +376,9 @@ void getsym()
 
             case '=':
                 c = getch();
+				if(isFileEnd==TRUE)
+					return;
+
                 if(c=='=')
                     symbol = EQL;
                 else
@@ -404,6 +426,8 @@ void getsym()
                     }
                     id[i++]=c;
                     c=getch();
+					if(isFileEnd==TRUE)
+						return;
                 }
                 id[i]='\0';
                 goback();
@@ -412,7 +436,13 @@ void getsym()
 
             case '\'':
                 chconst = getch();
+				if(isFileEnd==TRUE)
+					return;
+
                 c = getch();
+				if(isFileEnd==TRUE)
+					return;
+
                 if(c=='\'')
                 {
                     if(chconst=='+'||chconst=='-'||chconst=='*'||chconst=='/'||
@@ -438,10 +468,15 @@ void getsym()
             case '\"':
                 j = 0;
                 c = getch();
+				if(isFileEnd==TRUE)
+					return;
+
                 while(c!='\"'&&j<MAXSTR-1)
                 {
                     str[j++] = c;
                     c = getch();
+					if(isFileEnd==TRUE)
+						return;
                 }
                 str[j]='\0';
 
@@ -628,28 +663,46 @@ void constdec()
     if(symbol==CONSTSYM)
     {
         getsym();
+		if(isFileEnd==TRUE)
+			return;
 
 		if(symbol!=INTSYM&&symbol!=CHARSYM)
 		{
 			error(17);
 			while(symbol!=INTSYM&&symbol!=CHARSYM&&isFileEnd==FALSE)
+			{
 				getsym();
+				if(isFileEnd==TRUE)
+					return;
+			}
+
 		}
 
         if(symbol==INTSYM)
         {
             getsym();
+			if(isFileEnd==TRUE)
+					return;
+
             if(symbol!=IDEN)
             {
 				error(1);
                 while(symbol!=IDEN&&isFileEnd==FALSE)
+				{
 					getsym();
+					if(isFileEnd==TRUE)
+						return;
+				}
             }
 
 			getsym();
+			if(isFileEnd==TRUE)
+						return;
             if(symbol==ASSIGN)
             {
                     getsym();
+					if(isFileEnd==TRUE)
+						return;
 
             }
             else
@@ -662,13 +715,22 @@ void constdec()
                         while(symbol==COMMA)
                         {
                             getsym();
+							if(isFileEnd==TRUE)
+								return;
+
                             if(symbol==IDEN)
                             {
                                 getsym();
+								if(isFileEnd==TRUE)
+									return;
+
 
                                 if(symbol==ASSIGN)
                                 {
                                     getsym();
+									if(isFileEnd==TRUE)
+										return;
+
                                     isint();
                                 }
                                 else
@@ -690,6 +752,9 @@ void constdec()
                    if(symbol==SEMICOLON)
                     {
                         getsym();
+						if(isFileEnd==TRUE)
+									return;
+
                         if(symbol==CONSTSYM)
                         {
                             constdec();
@@ -704,18 +769,28 @@ void constdec()
         else if(symbol==CHARSYM)
         {
             getsym();
+			if(isFileEnd==TRUE)
+				return;
+
             if(symbol!=IDEN)
             {
                 error(1);
                 while(symbol!=IDEN&&isFileEnd==FALSE)
+				{
 					getsym();
+					if(isFileEnd==TRUE)
+						return;
+				}
             }
 
 			getsym();
+			if(isFileEnd==TRUE)
+				return;
                 if(symbol==ASSIGN)
                 {
                     getsym();
-
+					if(isFileEnd==TRUE)
+						return;
 
                 }
                 else
@@ -727,21 +802,33 @@ void constdec()
                     {
 						error(20);
                         while(symbol!=CHARCST&&isFileEnd==FALSE)
+						{
 							getsym();
+							if(isFileEnd==TRUE)
+								return;
+						}
                     }
 
                    getsym();
+				   if(isFileEnd==TRUE)
+									return;
                         if(symbol==COMMA)
                         {
                             while(symbol==COMMA)
                             {
                                 getsym();
+								if(isFileEnd==TRUE)
+									return;
                                 if(symbol==IDEN)
                                 {
                                     getsym();
+									if(isFileEnd==TRUE)
+										return;
                                     if(symbol==ASSIGN)
                                     {
                                         getsym();
+										if(isFileEnd==TRUE)
+											return;
 
                                     }
                                     else
@@ -753,9 +840,15 @@ void constdec()
                                         {
 											error(20);
                                             while(symbol!=CHARCST&&isFileEnd==FALSE)
+											{
 												getsym();
+												if(isFileEnd==TRUE)
+													return;
+											}
                                         }
                                         getsym();
+										if(isFileEnd==TRUE)
+											return;
                                 }
                                 else
                                 {
@@ -770,6 +863,8 @@ void constdec()
                         if(symbol==SEMICOLON)
                         {
                             getsym();
+							if(isFileEnd==TRUE)
+									return;
                             if(symbol==CONSTSYM)
                             {
                                 constdec();
@@ -781,89 +876,908 @@ void constdec()
                         }
         }
 
+        printf("This is const declaration.\n");
+
     }
+}
+
+void tovardec()
+{
+    if(symbol==COMMA)
+    {
+        getsym();
+		if(isFileEnd==TRUE)
+			return;
+        if(symbol==IDEN)
+        {
+            getsym();
+			if(isFileEnd==TRUE)
+				return;
+            tovardec();
+        }
+        else
+        {
+            error(2);
+        }
+    }
+
+    if(symbol==LBKET)
+    {
+        getsym();
+		if(isFileEnd==TRUE)
+			return;
+        if(symbol==NUMBER)
+        {
+            if(num==0)
+            {
+                num = 10;
+                error(4);
+            }
+            getsym();
+			if(isFileEnd==TRUE)
+				return;
+        }
+
+		else
+        {
+			num = 10;
+            error(3);
+
+        }
+
+        if(symbol!=RBKET)
+        {
+				error(5);
+        }
+		else
+		{
+			getsym();
+			if(isFileEnd==TRUE)
+				return;
+		}
+
+
+         if(symbol==COMMA)
+        {
+                getsym();
+				if(isFileEnd==TRUE)
+					return;
+                if(symbol==IDEN)
+                {
+                        getsym();
+						if(isFileEnd==TRUE)
+							return;
+                        tovardec();
+                }
+                else
+                {
+                        error(2);
+                }
+         }
+
+    }
+
+    if(symbol==SEMICOLON)
+    {
+        getsym();
+		if(isFileEnd==TRUE)
+			return;
+        if(symbol==INTSYM||symbol==CHARSYM)
+        {
+            vardec();
+        }
+    }
+
+
+
 }
 
 void vardec()
 {
+    if(symbol==INTSYM||symbol==CHARSYM)
+    {
+        getsym();
+        if(isFileEnd==TRUE)
+            return;
+
+        if(symbol!=IDEN)
+        {
+            error(1);
+            while(symbol!=IDEN&&isFileEnd==FALSE)
+            {
+                getsym();
+                if(isFileEnd==TRUE)
+                    return;
+            }
+
+        }
+        getsym();
+        if(isFileEnd==TRUE)
+            return;
+
+        tovardec();
+
+        printf("This is variation declaration.\n");
+
+    }
+
 
 }
 
-void funcdecic()
-{
 
-}
-
-void funcdecvo()
-{
-
-}
 
 
 
 void mixsta()
 {
-    getsym();
+    if(symbol==CONSTSYM)
+    {
+        constdec();
+    }
+
+    if(symbol==INTSYM||symbol==CHARSYM)
+    {
+        vardec();
+    }
+
+    statements();
+
+    printf("This is mixture statements.\n");
 }
 
 void statements()
 {
+    if(symbol==IFSYM||symbol==DOSYM||symbol==FORSYM||symbol==LBRACE||symbol==IDEN||
+       symbol==SCANFSYM||symbol==PRINTFSYM||symbol==SEMICOLON||symbol==RETURNSYM)
+    {
+        while((symbol==IFSYM||symbol==DOSYM||symbol==FORSYM||symbol==LBRACE||symbol==IDEN||
+              symbol==SCANFSYM||symbol==PRINTFSYM||symbol==SEMICOLON||symbol==RETURNSYM)
+              &&isFileEnd==FALSE)
+        {
+             statemt();
+             getsym();
+             if(isFileEnd==TRUE)
+					 return;
+        }
+         printf("This is statements.\n");
+    }
+
+
 
 }
 
 void statemt()
 {
+            if(symbol==IFSYM)
+             {
+                  ifsta();
+             }
+             if(symbol==DOSYM||symbol==FORSYM)
+             {
+                 loopsta();
+             }
+             if(symbol==LBRACE)
+             {
+                 getsym();
+                 if(isFileEnd==TRUE)
+					 return;
+
+                 statements();
+                 if(symbol!=RBRACE)
+                 {
+                     error(26);
+                     while(symbol!=RBRACE&&isFileEnd==FALSE)
+                     {
+                         getsym();
+                         if(isFileEnd==TRUE)
+                            return;
+
+                     }
+                 }
+
+                 ///////////////
+             }
+
+             if(symbol==IDEN)
+             {
+                 getsym();
+                 if(isFileEnd==TRUE)
+					 return;
+
+                 if(symbol==LPAREN)
+                 {
+                     callsta();
+                     if(symbol!=SEMICOLON)
+                     {
+                         error(48);
+                     }
+
+                 }
+                 if(symbol==LBKET||symbol==ASSIGN)
+                 {
+                     assignsta();
+                     if(symbol!=SEMICOLON)
+                     {
+                         error(48);
+                     }
+
+                 }
+             }
+
+             if(symbol==SCANFSYM)
+             {
+                 readsta();
+                 if(symbol!=SEMICOLON)
+                 {
+                         error(48);
+                 }
+
+             }
+
+             if(symbol==PRINTFSYM)
+             {
+                 writesta();
+                 if(symbol!=SEMICOLON)
+                 {
+                         error(48);
+                 }
+
+             }
+             if(symbol==SEMICOLON)
+             {
+
+             }
+             if(symbol==RETURNSYM)
+             {
+                 returnsta();
+                 if(symbol!=SEMICOLON)
+                 {
+                         error(48);
+                 }
+
+             }
+
+
+}
+
+void condition()
+{
+    expression();
+
+    if(symbol==LSS||symbol==LEQ||symbol==GRT||symbol==GEQ||symbol==NEQ)
+    {
+        getsym();
+        if(isFileEnd==TRUE)
+                return;
+        expression();
+    }
+
 
 }
 
 void ifsta()
 {
+    if(symbol==IFSYM)
+    {
+        getsym();
+		if(isFileEnd==TRUE)
+			return;
+
+        if(symbol!=LPAREN)
+        {
+            error(28);
+        }
+        else
+        {
+            getsym();
+            if(isFileEnd==TRUE)
+                return;
+        }
+        condition();
+
+        if(symbol!=RPAREN)
+        {
+            error(29);
+        }
+        else
+        {
+            getsym();
+            if(isFileEnd==TRUE)
+                return;
+        }
+        statemt();
+
+        if(symbol==ELSESYM)
+        {
+            getsym();
+            if(isFileEnd==TRUE)
+                return;
+
+            statemt();
+        }
+
+         printf("This is if statement.\n");
+    }
+
 
 }
 
 void loopsta()
 {
+    if(symbol==DOSYM)
+    {
+        getsym();
+        if(isFileEnd==TRUE)
+            return;
+
+        statemt();
+
+        getsym();
+        if(isFileEnd==TRUE)
+            return;
+        if(symbol!=WHILESYM)
+        {
+            error(30);
+            while(symbol!=WHILESYM&&isFileEnd==FALSE)
+            {
+                getsym();
+                if(isFileEnd==TRUE)
+                    return;
+            }
+        }
+        getsym();
+        if(isFileEnd==TRUE)
+            return;
+
+        if(symbol!=LPAREN)
+        {
+            error(31);
+        }
+
+        else
+        {
+            getsym();
+            if(isFileEnd==TRUE)
+                return;
+        }
+
+        condition();
+
+        if(symbol!=RPAREN)
+        {
+            error(32);
+        }
+
+        else
+        {
+            getsym();
+            if(isFileEnd==TRUE)
+                return;
+        }
+
+        printf("This is do-while statement.\n");
+
+    }
+    else if(symbol==FORSYM)
+    {
+        getsym();
+        if(isFileEnd==TRUE)
+            return;
+
+        if(symbol==LPAREN)
+        {
+            error(33);
+        }
+        else
+        {
+            getsym();
+            if(isFileEnd==TRUE)
+                return;
+        }
+
+        if(symbol!=IDEN)
+        {
+            error(34);
+            while(symbol!=IDEN)
+            {
+                getsym();
+                if(isFileEnd==TRUE)
+                    return;
+            }
+        }
+         getsym();
+        if(isFileEnd==TRUE)
+            return;
+        if(symbol!=ASSIGN)
+        {
+            error(36);
+        }
+
+        else
+        {
+            getsym();
+            if(isFileEnd==TRUE)
+                return;
+        }
+        expression();
+
+        if(symbol!=SEMICOLON)
+        {
+            error(37);
+
+        }
+
+        else
+        {
+             getsym();
+            if(isFileEnd==TRUE)
+                return;
+
+            condition();
+            if(symbol!=SEMICOLON)
+            {
+                error(38);
+            }
+            else
+            {
+                getsym();
+                if(isFileEnd==TRUE)
+                    return;
+            }
+
+            if(symbol!=IDEN)
+            {
+                error(39);
+                while(symbol!=IDEN&&isFileEnd==FALSE)
+                {
+                    getsym();
+                    if(isFileEnd==TRUE)
+                        return;
+                }
+            }
+
+            getsym();
+            if(isFileEnd==TRUE)
+                  return;
+
+            if(symbol!=ASSIGN)
+            {
+                error(36);
+            }
+
+            else
+            {
+                getsym();
+                if(isFileEnd==TRUE)
+                    return;
+                if(symbol!=IDEN)
+                {
+                    error(39);
+                    while(symbol!=IDEN&&isFileEnd==FALSE)
+                    {
+                        getsym();
+                        if(isFileEnd==TRUE)
+                            return;
+                    }
+                }
+
+                getsym();
+                if(isFileEnd==TRUE)
+                    return;
+
+                if(!(symbol==PLUS||symbol==MINUS))
+                {
+                    error(40);
+                    while(symbol!=PLUS&&symbol!=MINUS&&isFileEnd==FALSE)
+                    {
+                        getsym();
+                        if(isFileEnd==TRUE)
+                            return;
+                    }
+                }
+
+                 getsym();
+                if(isFileEnd==TRUE)
+                    return;
+                if(symbol!=NUMBER)
+                {
+                    error(41);
+                    while(symbol!=NUMBER&&isFileEnd==FALSE)
+                    {
+                        getsym();
+                        if(isFileEnd==TRUE)
+                            return;
+                    }
+                }
+
+                if(num==0)
+                {
+                    error(42);
+                    num = 1;
+                }
+                getsym();
+                if(isFileEnd==TRUE)
+                    return;
+
+                if(symbol!=RPAREN)
+                {
+                    error(35);
+                }
+
+                else
+                {
+                    getsym();
+                    if(isFileEnd==TRUE)
+                        return;
+                }
+
+                statemt();
+
+            }
+        }
+
+        printf("This is for statement.\n");
+
+    }
 
 }
 
 
 void callsta()
 {
+    if(symbol==LPAREN)
+    {
+        getsym();
+        if(isFileEnd==TRUE)
+            return;
+
+        if(symbol!=RPAREN)
+        {
+            expression();
+
+
+            while(symbol==COMMA&&isFileEnd==FALSE)
+            {
+                getsym();
+                if(isFileEnd==TRUE)
+                    return;
+                expression();
+            }
+        }
+
+        if(symbol!=RPAREN)
+        {
+            error(43);
+            while(symbol!=RPAREN)
+            {
+                 getsym();
+                if(isFileEnd==TRUE)
+                    return;
+            }
+        }
+
+        getsym();
+        if(isFileEnd==TRUE)
+            return;
+
+        printf("This is call statement.\n");
+    }
 
 }
 
 void assignsta()
 {
+    if(symbol==LBKET)
+    {
+        getsym();
+        if(isFileEnd==TRUE)
+            return;
 
+        expression();
+        if(symbol!=RBKET)
+        {
+            error(5);
+        }
+        else
+        {
+            getsym();
+            if(isFileEnd==TRUE)
+                return;
+        }
+    }
+
+    if(symbol==ASSIGN)
+    {
+        getsym();
+        if(isFileEnd==TRUE)
+            return;
+        expression();
+
+    }
+
+    printf("This is assign statement.\n");
 }
 
 void readsta()
 {
+    if(symbol==SCANFSYM)
+    {
+        getsym();
+        if(isFileEnd==TRUE)
+            return;
+        if(symbol!=LPAREN)
+        {
+            error(44);
+            while(symbol!=LPAREN&&isFileEnd==FALSE)
+            {
+                getsym();
+                if(isFileEnd==TRUE)
+                    return;
+            }
+        }
+        getsym();
+        if(isFileEnd==TRUE)
+            return;
+        if(symbol!=IDEN)
+        {
+            error(46);
+            while(symbol!=IDEN&&isFileEnd==FALSE)
+            {
+                getsym();
+                if(isFileEnd==TRUE)
+                    return;
+            }
+        }
+        getsym();
+        if(isFileEnd==TRUE)
+            return;
 
+        if(symbol==COMMA)
+        {
+            while(symbol==COMMA&&isFileEnd==FALSE)
+            {
+                getsym();
+                if(isFileEnd==TRUE)
+                    return;
+                if(symbol!=IDEN)
+                {
+                    error(46);
+                    break;
+                }
+                getsym();
+                if(isFileEnd==TRUE)
+                    return;
+            }
+
+        }
+        if(symbol!=RPAREN)
+        {
+            error(45);
+            while(symbol!=RPAREN&&isFileEnd==FALSE)
+            {
+                getsym();
+                if(isFileEnd==TRUE)
+                    return;
+            }
+        }
+
+        getsym();
+        if(isFileEnd==TRUE)
+            return;
+
+        printf("This is read statement.\n");
+
+    }
 }
 
 void writesta()
 {
+    if(symbol==PRINTFSYM)
+    {
+        getsym();
+        if(isFileEnd==TRUE)
+            return;
+        if(symbol!=LPAREN)
+        {
+            error(44);
+            while(symbol!=LPAREN&&isFileEnd==FALSE)
+            {
+                getsym();
+                if(isFileEnd==TRUE)
+                    return;
+            }
+        }
+        getsym();
+        if(isFileEnd==TRUE)
+            return;
 
+        if(symbol==STRING)
+        {
+            getsym();
+            if(isFileEnd==TRUE)
+                return;
+            if(symbol==COMMA)
+            {
+                getsym();
+                if(isFileEnd==TRUE)
+                    return;
+                expression();
+            }
+
+        }
+
+        else
+        {
+            expression();
+
+        }
+
+          if(symbol!=RPAREN)
+            {
+                error(45);
+                while(symbol!=RPAREN&&isFileEnd==FALSE)
+                {
+                    getsym();
+                    if(isFileEnd==TRUE)
+                        return;
+                }
+            }
+
+            getsym();
+            if(isFileEnd==TRUE)
+                return;
+
+        printf("This is write statement.\n");
+    }
 }
 
 void returnsta()
 {
+    if(symbol==RETURNSYM)
+    {
+        getsym();
+        if(isFileEnd==TRUE)
+            return;
 
+        if(symbol==LPAREN)
+        {
+            getsym();
+            if(isFileEnd==TRUE)
+                return;
+            expression();
+            if(symbol!=RPAREN)
+            {
+                error(47);
+                while(symbol!=RPAREN)
+                {
+                    getsym();
+                    if(isFileEnd==TRUE)
+                        return;
+                }
+            }
+            getsym();
+            if(isFileEnd==TRUE)
+                return;
+
+        }
+
+        printf("This is return statement.\n");
+
+    }
 }
 
 void expression()
 {
+    if(symbol==PLUS||symbol==MINUS)
+    {
+        getsym();
+		if(isFileEnd==TRUE)
+			return;
+    }
+
+    term();
+
+    if(symbol==PLUS||symbol==MINUS)
+    {
+        while((symbol==PLUS||symbol==MINUS)&&isFileEnd==FALSE)
+        {
+            getsym();
+            if(isFileEnd==TRUE)
+                return;
+
+            term();
+        }
+
+    }
+
 
 }
 
 void term()
 {
+    factor();
+    if(symbol==TIMES||symbol==DIVI)
+    {
+        while((symbol==TIMES||symbol==DIVI)&&isFileEnd==FALSE)
+        {
+            getsym();
+            if(isFileEnd==TRUE)
+                return;
 
+            factor();
+        }
+
+    }
 }
 
 void factor()
 {
+    if(symbol==IDEN)
+    {
+         getsym();
+         if(isFileEnd==TRUE)
+			return;
+
+         if(symbol==LPAREN)
+         {
+             callsta();
+         }
+
+         else if(symbol==LBKET)
+         {
+             getsym();
+             if(isFileEnd==TRUE)
+                return;
+             expression();
+
+             if(symbol!=RBKET)
+             {
+                 error(5);
+             }
+             else
+			{
+				getsym();
+				if(isFileEnd==TRUE)
+					return;
+			}
+
+         }
+    }
+
+    else if(symbol==PLUS||symbol==MINUS||symbol==NUMBER)
+    {
+        isint();
+    }
+
+    else if(symbol==CHARCST)
+    {
+        getsym();
+         if(isFileEnd==TRUE)
+			return;
+    }
+
+    else if(symbol==LPAREN)
+    {
+         getsym();
+         if(isFileEnd==TRUE)
+			return;
+
+         expression();
+
+         if(symbol!=RPAREN)
+         {
+             error(27);
+             while(symbol!=RPAREN&&isFileEnd==FALSE)
+             {
+                 getsym();
+                 if(isFileEnd==TRUE)
+                    return;
+             }
+         }
+         getsym();
+         if(isFileEnd==TRUE)
+			return;
+    }
 
 }
 
@@ -873,37 +1787,59 @@ void isint()
 	{
 		error(15);
 		while(symbol!=PLUS&&symbol!=MINUS&&symbol!=NUMBER&&isFileEnd==FALSE)
-			getsym();
+		{
+				getsym();
+				if(isFileEnd==TRUE)
+					return;
+		}
 	}
 
     if(symbol==PLUS)
     {
         getsym();
+		if(isFileEnd==TRUE)
+			return;
         if(symbol!=NUMBER)
         {
 			error(16);
 			while(symbol!=NUMBER&&isFileEnd==FALSE)
+			{
 				getsym();
+				if(isFileEnd==TRUE)
+					return;
+			}
 
         }
 		getsym();
+		if(isFileEnd==TRUE)
+			return;
 
     }
     else if(symbol==MINUS)
     {
         getsym();
+		if(isFileEnd==TRUE)
+			return;
         if(symbol!=NUMBER)
         {
             error(16);
 			while(symbol!=NUMBER&&isFileEnd==FALSE)
+			{
 				getsym();
+				if(isFileEnd==TRUE)
+					return;
+			}
         }
         num = 0-num;
         getsym();
+		if(isFileEnd==TRUE)
+			return;
     }
     else if(symbol==NUMBER)
     {
         getsym();
+		if(isFileEnd==TRUE)
+			return;
     }
 
 }
@@ -913,9 +1849,13 @@ void vartopro()
     if(symbol==COMMA)
     {
         getsym();
+		if(isFileEnd==TRUE)
+			return;
         if(symbol==IDEN)
         {
             getsym();
+			if(isFileEnd==TRUE)
+				return;
             vartopro();
         }
         else
@@ -928,6 +1868,8 @@ void vartopro()
     if(symbol==LBKET)
     {
         getsym();
+		if(isFileEnd==TRUE)
+			return;
         if(symbol==NUMBER)
         {
             if(num==0)
@@ -936,6 +1878,8 @@ void vartopro()
                 error(4);
             }
             getsym();
+			if(isFileEnd==TRUE)
+				return;
         }
 
 		else
@@ -953,13 +1897,22 @@ void vartopro()
 
 
             }
-            getsym();
+           else
+			{
+				getsym();
+				if(isFileEnd==TRUE)
+					return;
+			}
                 if(symbol==COMMA)
                 {
                     getsym();
+					if(isFileEnd==TRUE)
+						return;
                     if(symbol==IDEN)
                     {
                         getsym();
+						if(isFileEnd==TRUE)
+							return;
                         vartopro();
                     }
                     else
@@ -974,17 +1927,27 @@ void vartopro()
     if(symbol==SEMICOLON)
     {
         getsym();
+		if(isFileEnd==TRUE)
+			return;
         if(symbol==INTSYM||symbol==CHARSYM)
         {
             getsym();
+			if(isFileEnd==TRUE)
+				return;
             if(symbol!=IDEN)
             {
 				error(1);
                 while(symbol!=IDEN&&isFileEnd==FALSE)
+				{
 					getsym();
+					if(isFileEnd==TRUE)
+						return;
+				}
 
             }
 			getsym();
+			if(isFileEnd==TRUE)
+				return;
             if(symbol==COMMA||symbol==SEMICOLON||symbol==LBKET)
             {
                 vartopro();
@@ -997,10 +1960,7 @@ void vartopro()
         }
     }
 
-    else
-    {
-        error(6);
-    }
+printf("This is varaible declaration for program.\n");
 }
 
 void parameter()
@@ -1008,17 +1968,27 @@ void parameter()
     if(symbol==INTSYM||symbol==CHARSYM)
     {
         getsym();
+		if(isFileEnd==TRUE)
+			return;
         if(symbol!=IDEN)
         {
 			error(1);
             while(symbol!=IDEN&&isFileEnd==FALSE)
+			{
 				getsym();
+				if(isFileEnd==TRUE)
+					return;
+			}
 
         }
         getsym();
+		if(isFileEnd==TRUE)
+			return;
         if(symbol==COMMA)
         {
             getsym();
+			if(isFileEnd==TRUE)
+				return;
             parameter();
         }
     }
@@ -1034,10 +2004,16 @@ void fictopro()
     {
 		error(7);
         while(symbol!=LPAREN&&isFileEnd==FALSE)
-			getsym();
+		{
+				getsym();
+				if(isFileEnd==TRUE)
+					return;
+		}
     }
 
 	getsym();
+	if(isFileEnd==TRUE)
+			return;
         if(symbol==INTSYM||symbol==CHARSYM)
         {
             parameter();
@@ -1047,50 +2023,83 @@ void fictopro()
         {
            error(9);
 		   while(symbol!=RPAREN&&isFileEnd==FALSE)
-			   getsym();
+			{
+				getsym();
+				if(isFileEnd==TRUE)
+					return;
+			}
         }
 		 getsym();
+		 if(isFileEnd==TRUE)
+			return;
             if(symbol!=LBRACE)
             {
 				error(10);
 					while(symbol!=LBRACE&&isFileEnd==FALSE)
+					{
 						getsym();
+						if(isFileEnd==TRUE)
+							return;
+					}
 
 
             }
-             mixsta();
+         getsym();
+		 if(isFileEnd==TRUE)
+			return;
+         mixsta();
                 if(symbol!=RBRACE)
                 {
 					error(11);
 					while(symbol!=RBRACE&&isFileEnd==FALSE)
+					{
 						getsym();
+						if(isFileEnd==TRUE)
+							return;
+					}
 
                 }
                 getsym();
+				if(isFileEnd==TRUE)
+					return;
 
 				if(symbol!=INTSYM&&symbol!=CHARSYM&&symbol!=VOIDSYM)
 				{
 					error(12);
 					while(symbol!=INTSYM&&symbol!=CHARSYM&&symbol!=VOIDSYM&&isFileEnd==FALSE)
+					{
 						getsym();
+						if(isFileEnd==TRUE)
+							return;
+					}
 				}
 
-                    if(symbol==INTSYM||CHARSYM)
+                    if(symbol==INTSYM||symbol==CHARSYM)
                     {
                         getsym();
+						if(isFileEnd==TRUE)
+							return;
                         if(symbol!=IDEN)
                         {
 							error(1);
 							while(symbol!=IDEN&&isFileEnd==FALSE)
+							{
 								getsym();
+								if(isFileEnd==TRUE)
+									return;
+							}
 
                         }
                         getsym();
+						if(isFileEnd==TRUE)
+							return;
                         fictopro();
                     }
                     else if(symbol==VOIDSYM)
                     {
                         getsym();
+						if(isFileEnd==TRUE)
+							return;
                         if(symbol==IDEN)
                         {
                             fvotopro();
@@ -1098,7 +2107,7 @@ void fictopro()
                     }
 
 
-
+printf("This is function's declaration for program.\n");
 }
 
 void fvotopro()
@@ -1107,11 +2116,19 @@ void fvotopro()
     {
 		error(13);
 		while(symbol!=IDEN&&isFileEnd==FALSE)
-			getsym();
+		{
+				getsym();
+				if(isFileEnd==TRUE)
+					return;
+		}
 
     }
     getsym();
+	if(isFileEnd==TRUE)
+		return;
     fictopro();
+
+printf("This is void function's declaration for program.\n");
 }
 
 
@@ -1121,46 +2138,74 @@ void ismain()
     {
        error(14);
 	   while(symbol!=MAINSYM&&isFileEnd==FALSE)
-		   getsym();
+		{
+				getsym();
+				if(isFileEnd==TRUE)
+					return;
+		}
 
     }
 
 	 getsym();
-        if(symbol!=LPAREN)
-        {
+	 if(isFileEnd==TRUE)
+		return;
+     if(symbol!=LPAREN)
+     {
 			error(7);
 			while(symbol!=LPAREN&&isFileEnd==FALSE)
+			{
 				getsym();
+				if(isFileEnd==TRUE)
+					return;
+			}
 
-        }
+     }
 
-		getsym();
-            if(symbol!=RPAREN)
-            {
+     getsym();
+	 if(isFileEnd==TRUE)
+		return;
+     if(symbol!=RPAREN)
+     {
 				error(9);
 				while(symbol!=RPAREN&&isFileEnd==FALSE)
+				{
 					getsym();
+					if(isFileEnd==TRUE)
+						return;
+				}
 
-            }
-            getsym();
-                if(symbol!=LBRACE)
-                {
+     }
+     getsym();
+	 if(isFileEnd==TRUE)
+		return;
+     if(symbol!=LBRACE)
+     {
                     error(10);
 					while(symbol!=LBRACE&&isFileEnd==FALSE)
+					{
 						getsym();
-                }
+						if(isFileEnd==TRUE)
+							return;
+					}
+      }
 
-				getsym();
-                    mixsta();
-                    if(symbol!=RBRACE)
-                    {
+      getsym();
+	  if(isFileEnd==TRUE)
+		return;
+      mixsta();
+      if(symbol!=RBRACE)
+      {
 						error(11);
 						while(symbol!=RBRACE&&isFileEnd==FALSE)
+						{
 							getsym();
+							if(isFileEnd==TRUE)
+								return;
+						}
 
-                    }
-                    printf("compiler file is end.\n");
-                        return;
+      }
+      printf("This is main function.\n");
+      return;
 
 
 
@@ -1171,6 +2216,12 @@ void ismain()
 void program()
 {
     getsym();
+	if(isFileEnd==TRUE)
+    {
+        error(14);
+        return;
+    }
+
     if(symbol==CONSTSYM)
     {
         constdec();
@@ -1178,15 +2229,32 @@ void program()
     if(symbol==INTSYM||symbol==CHARSYM)
     {
         getsym();
+		if(isFileEnd==TRUE)
+		{
+            error(14);
+            return;
+        }
         if(symbol!=IDEN)
         {
 			error(1);
 			while(symbol!=IDEN&&isFileEnd==FALSE)
+			{
 				getsym();
+				if(isFileEnd==TRUE)
+				{
+                    error(14);
+                    return;
+                }
+			}
 
         }
 
         getsym();
+		if(isFileEnd==TRUE)
+		{
+            error(14);
+            return;
+        }
         if(symbol==COMMA||symbol==SEMICOLON||symbol==LBKET)
         {
             vartopro();
@@ -1201,6 +2269,11 @@ void program()
     if(symbol==VOIDSYM)
     {
         getsym();
+		if(isFileEnd==TRUE)
+		{
+            error(14);
+            return;
+        }
         if(symbol==IDEN)
         {
             fvotopro();
@@ -1241,7 +2314,7 @@ int main()
     }
     */
 
-    printf("end of the main\n");
+    printf("hello world\n");
     free(file);
     return 0;
 }
