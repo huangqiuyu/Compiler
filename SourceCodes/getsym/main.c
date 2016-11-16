@@ -137,6 +137,7 @@ void getsym()
         if(isFileEnd==TRUE)
         {
             printf("read the end of file\n");
+			return;
         }
     }
 
@@ -568,7 +569,155 @@ void printgetsym()
 
 void constdec()
 {
+    if(symbol==CONSTSYM)
+    {
+        getsym();
+		
+		if(symbol!=INTSYM&&symbol!=CHARSYM)
+		{
+			error(17);
+			while(symbol!=INTSYM&&symbol!=CHARSYM&&isFileEnd==FALSE)
+				getsym();
+		}
+		
+        if(symbol==INTSYM)
+        {
+            getsym();
+            if(symbol!=IDEN)
+            {
+				error(1);
+                while(symbol!=IDEN&&isFileEnd==FALSE)
+					getsym();
+            }
+			
+			getsym();
+            if(symbol==ASSIGN)
+            {
+                    getsym();
+                   
+            }
+            else
+            {
+                    error(18);
+            }
+			 isint();
+                    if(symbol==COMMA)
+                    {
+                        while(symbol==COMMA)
+                        {
+                            getsym();
+                            if(symbol==IDEN)
+                            {
+                                getsym();
+								
+                                if(symbol==ASSIGN)
+                                {
+                                    getsym();
+                                    isint();
+                                }
+                                else
+                                {
+                                    error(18);
+									isint();
+                                }
+                            }
+                            else
+                            {
+                                error(2);
+                            }
+                        }
+                        if(symbol!=SEMICOLON)
+                        {
+                            error(19);
+                        }
+                    }
+                    else if(symbol==SEMICOLON)
+                    {
 
+                    }
+                    else
+                    {
+                        error(19);
+                    }
+           
+        }
+        else if(symbol==CHARSYM)
+        {
+            getsym();
+            if(symbol!=IDEN)
+            {
+                error(1);
+                while(symbol!=IDEN&&isFileEnd==FALSE)
+					getsym();
+            }
+			
+			getsym();
+                if(symbol==ASSIGN)
+                {
+                    getsym();
+                    
+
+                }
+                else
+                {
+                    error(18);
+                }
+			
+                if(symbol!=CHARCST)
+                    {
+						error(20);
+                        while(symbol!=CHARCST)
+							getsym();
+                    }
+
+                   getsym();
+                        if(symbol==COMMA)
+                        {
+                            while(symbol==COMMA)
+                            {
+                                getsym();
+                                if(symbol==IDEN)
+                                {
+                                    getsym();
+                                    if(symbol==ASSIGN)
+                                    {
+                                        getsym();
+                                       
+                                    }
+                                    else
+                                    {
+                                        error(18);
+                                    }
+									
+									 if(symbol!=CHARCST)
+                                        {
+											error(20);
+                                            while(symbol!=CHARCST)
+												getsym();
+                                        }
+                                        getsym();
+                                }
+                                else
+                                {
+                                    error(2);
+                                }
+                            }
+                            if(symbol!=SEMICOLON)
+                            {
+                                error(19);
+                            }
+                        }
+                        else if(symbol==SEMICOLON)
+                        {
+
+                        }
+                        else
+                        {
+                            error(19);
+                        }
+        }
+        
+    }
 }
 
 void vardec()
@@ -656,7 +805,43 @@ void factor()
 
 void isint()
 {
-
+	if(symbol!=PLUS&&symbol!=MINUS&&symbol!=NUMBER)
+	{
+		error(15);
+		while(symbol!=PLUS&&symbol!=MINUS&&symbol!=NUMBER)
+			getsym();
+	}
+	
+    if(symbol==PLUS)
+    {
+        getsym();
+        if(symbol!=NUMBER)
+        {
+			error(16);
+			while(symbol!=NUMBER)
+				getsym();
+            
+        }
+		getsym();
+       
+    }
+    else if(symbol==MINUS)
+    {
+        getsym();
+        if(symbol!=NUMBER)
+        {
+            error(16);
+			while(symbol!=NUMBER)
+				getsym();
+        }
+        num = 0-num;
+        getsym();
+    }
+    else if(symbol==NUMBER)
+    {
+        getsym();
+    }
+    
 }
 
 void vartopro()
@@ -687,10 +872,24 @@ void vartopro()
                 error(4);
             }
             getsym();
+        }
+		
+		else
+        {
+			num = 10;
+            error(3);
+			
+        }
+		
+		
 
-            if(symbol==RBKET)
+            if(symbol!=RBKET)
             {
-                getsym();
+				error(5);
+                
+
+            }
+            getsym();
                 if(symbol==COMMA)
                 {
                     getsym();
@@ -704,17 +903,8 @@ void vartopro()
                         error(2);
                     }
                 }
-
-            }
-            else
-            {
-                error(5);
-            }
-        }
-        else
-        {
-            error(3);
-        }
+		
+        
     }
 
     if(symbol==SEMICOLON)
@@ -723,23 +913,22 @@ void vartopro()
         if(symbol==INTSYM||symbol==CHARSYM)
         {
             getsym();
-            if(symbol==IDEN)
+            if(symbol!=IDEN)
             {
-                getsym();
-                if(symbol==COMMA||symbol==SEMICOLON||symbol==LBKET)
-                {
-                    vartopro();
-                }
-
-                if(symbol==LPAREN)
-                {
-                    fictopro();
-                }
+				error(1);
+                while(symbol!=IDEN&&isFileEnd==FALSE)
+					getsym();
+                
+            }
+			getsym();
+            if(symbol==COMMA||symbol==SEMICOLON||symbol==LBKET)
+            {
+                vartopro();
             }
 
-            else
+            if(symbol==LPAREN)
             {
-                error(1);
+                fictopro();
             }
         }
     }
@@ -755,18 +944,18 @@ void parameter()
     if(symbol==INTSYM||symbol==CHARSYM)
     {
         getsym();
-        if(symbol==IDEN)
+        if(symbol!=IDEN)
+        {
+			error(1);
+            while(symbol!=IDEN&&isFileEnd==FALSE)
+				getsym();
+           
+        }
+        getsym();
+        if(symbol==COMMA)
         {
             getsym();
-            if(symbol==COMMA)
-            {
-                getsym();
-                parameter();
-            }
-        }
-        else
-        {
-            error(1);
+            parameter();
         }
     }
     else
@@ -777,36 +966,63 @@ void parameter()
 
 void fictopro()
 {
-    if(symbol==LPAREN)
+    if(symbol!=LPAREN)
     {
-        getsym();
+		error(7);
+        while(symbol!=LPAREN)
+			getsym();
+    }
+
+	getsym();
         if(symbol==INTSYM||symbol==CHARSYM)
         {
             parameter();
         }
 
-        if(symbol==RPAREN)
+        if(symbol!=RPAREN)
         {
-            getsym();
-            if(symbol==LBRACE)
+           error(9);
+		   while(symbol!=RPAREN)
+			   getsym();
+        }
+		 getsym();
+            if(symbol!=LBRACE)
             {
-                mixsta();
-                getsym();
-                if(symbol==RBRACE)
+				error(10);
+					while(symbol!=LBRACE&&isFileEnd==FALSE)
+						getsym();
+				
+               
+            }
+             mixsta();
+                if(symbol!=RBRACE)
                 {
-                    getsym();
+					error(11);
+					while(symbol!=RBRACE&&isFileEnd==FALSE)
+						getsym();
+                    
+                }
+                getsym();
+				
+				if(symbol!=INTSYM&&symbol!=CHARSYM&&symbol!=VOIDSYM)
+				{
+					error(12);
+					while(symbol!=INTSYM&&symbol!=CHARSYM&&symbol!=VOIDSYM&&isFileEnd==FALSE)
+						getsym();
+				}
+				
                     if(symbol==INTSYM||CHARSYM)
                     {
                         getsym();
-                        if(symbol==IDEN)
+                        if(symbol!=IDEN)
                         {
-                            getsym();
-                            fictopro();
+							error(1);
+							while(symbol!=IDEN&&isFileEnd==FALSE)
+								getsym();
+                           
                         }
-                        else
-                        {
-                            error(1);
-                        }
+                        getsym();
+                        fictopro();
                     }
                     else if(symbol==VOIDSYM)
                     {
@@ -816,57 +1032,75 @@ void fictopro()
                             fvotopro();
                         }
                     }
-                    else
-                    {
-                        error(12);
-                    }
-                }
-                else
-                {
-                    error(11);
-                }
-            }
-            else
-            {
-                error(10);
-            }
-        }
-        else
-        {
-            error(9);
-        }
-    }
-
-    else
-    {
-        error(7);
-    }
+                    
+        
+	
 }
 
 void fvotopro()
 {
-    if(symbol==IDEN)
+    if(symbol!=IDEN)
     {
-        getsym();
+		error(13);
+		while(symbol!=IDEN)
+			getsym();
+        
+    }
+    getsym();
         fictopro();
-    }
-    else
-    {
-        error(13);
-    }
 }
 
 
 void ismain()
 {
-    if(symbol==MAINSYM)
+    if(symbol!=MAINSYM)
     {
-
+       error(14);
+	   while(symbol!=MAINSYM)
+		   getsym();
+        
     }
-    else
-    {
-        error(14);
-    }
+	
+	 getsym();
+        if(symbol!=LPAREN)
+        {
+			error(7);
+			while(symbol!=LPAREN)
+				getsym();
+            
+        }
+		
+		getsym();
+            if(symbol!=RPAREN)
+            {
+				error(9);
+				while(symbol!=RPAREN)
+					getsym();
+                
+            }
+            getsym();
+                if(symbol!=LBRACE)
+                {
+                    error(10);
+					while(symbol!=LBRACE&&isFileEnd==FALSE)
+						getsym();
+                }
+				
+				getsym();
+                    mixsta();
+                    if(symbol!=RBRACE)
+                    {
+						error(11);
+						while(symbol!=RBRACE)
+							getsym();
+                        
+                    }
+                    printf("compiler file is end.\n");
+                        return;
+				
+                
+		
+	
 }
 
 //×¢ÒâÉùÃ÷µÄË³Ðò
@@ -880,23 +1114,23 @@ void program()
     if(symbol==INTSYM||symbol==CHARSYM)
     {
         getsym();
-        if(symbol==IDEN)
+        if(symbol!=IDEN)
         {
-            getsym();
-            if(symbol==COMMA||symbol==SEMICOLON||symbol==LBKET)
-            {
-                vartopro();
-            }
-
-            if(symbol==LPAREN)
-            {
-                fictopro();
-            }
+			error(1);
+			while(symbol!=IDEN&&isFileEnd==FALSE)
+				getsym();
+            
         }
 
-        else
+        getsym();
+        if(symbol==COMMA||symbol==SEMICOLON||symbol==LBKET)
         {
-            error(1);
+            vartopro();
+        }
+
+        if(symbol==LPAREN)
+        {
+            fictopro();
         }
     }
 }
