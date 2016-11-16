@@ -69,6 +69,8 @@ char str[MAXSTR];   //last output string read 最近一次读入的字符串
 
 int isFileEnd;
 
+int linenum=0;    //current line of read file 当前读到的行，用于出错处理的定位
+
 //table 符号表
 struct{
     char name[20];
@@ -77,12 +79,62 @@ struct{
 
 
 
-}table[MAXT];
+}table[MAXTAB];
+
+//function declare
+void error(int i);
+char getch();
+void goback();
+void getsym();
+int openfile();
+void printgetsym();
+void constdec();
+void vardec();
+void funcdecic();
+void funcdecvo();
+void mixsta();
+void statements();
+void statemt();
+void ifsta();
+void loopsta();
+void callsta();
+void assignsta();
+void readsta();
+void writesta();
+void returnsta();
+void expression();
+void term();
+void factor();
+void isint();
+void vartopro();
+void parameter();
+void fictopro();
+void fvotopro();
+void ismain();
+void program();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 void error(int i)
 {
-    printf("error!!!!\n");
+    printf("error code is  %d  \t in the line %d !!!!\n",i,linenum);
 }
+
+
+
+
 
 //read one character 读入一个字符，不直接用getchar因为不能回退
 char getch()
@@ -90,8 +142,10 @@ char getch()
 
     if((lineIndex>=MAXLS-1)||linebuf[lineIndex]=='\n'||linebuf[lineIndex]=='\0')
     {
+        linenum++;
         if((gets(linebuf))==NULL)
         {
+
             isFileEnd = TRUE;
             printf("read the end of file\n");
             return EOF;////////////
@@ -108,6 +162,8 @@ char getch()
             lineIndex=0;
             return linebuf[lineIndex++];
         }
+
+
     }
 
     else
@@ -149,7 +205,7 @@ void getsym()
             //out of range
             if(i>=MAXIDS-1)
             {
-                error();
+                error(21);
                 break;
             }
             id[i++]=c;
@@ -226,7 +282,7 @@ void getsym()
             c = getch();
             if(c>='0'&&c<='9')
             {
-                error();
+                error(22);
             }
             while(c>='0'&&c<='9')
             {
@@ -343,7 +399,7 @@ void getsym()
                     //out of range
                     if(i>=MAXIDS-1)
                     {
-                        error();
+                        error(21);
                         break;
                     }
                     id[i++]=c;
@@ -367,7 +423,7 @@ void getsym()
                     }
                     else
                     {
-                        error();
+                        error(23);
                         symbol = ERRORSYM;
                     }
                 }
@@ -375,7 +431,7 @@ void getsym()
                 {
                     goback();
                     symbol = ERRORSYM;
-                    error();
+                    error(24);
                 }
                 break;
 
@@ -397,14 +453,14 @@ void getsym()
                 {
                     symbol = ERRORSYM;
                     goback();
-                    error();
+                    error(24);
                 }
 
                 break;
 
             default:
                 symbol = ERRORSYM;
-                error();
+                error(25);
                 break;
 
         }
@@ -572,14 +628,14 @@ void constdec()
     if(symbol==CONSTSYM)
     {
         getsym();
-		
+
 		if(symbol!=INTSYM&&symbol!=CHARSYM)
 		{
 			error(17);
 			while(symbol!=INTSYM&&symbol!=CHARSYM&&isFileEnd==FALSE)
 				getsym();
 		}
-		
+
         if(symbol==INTSYM)
         {
             getsym();
@@ -589,12 +645,12 @@ void constdec()
                 while(symbol!=IDEN&&isFileEnd==FALSE)
 					getsym();
             }
-			
+
 			getsym();
             if(symbol==ASSIGN)
             {
                     getsym();
-                   
+
             }
             else
             {
@@ -609,7 +665,7 @@ void constdec()
                             if(symbol==IDEN)
                             {
                                 getsym();
-								
+
                                 if(symbol==ASSIGN)
                                 {
                                     getsym();
@@ -631,15 +687,19 @@ void constdec()
                             error(19);
                         }
                     }
-                    else if(symbol==SEMICOLON)
+                   if(symbol==SEMICOLON)
                     {
-
+                        getsym();
+                        if(symbol==CONSTSYM)
+                        {
+                            constdec();
+                        }
                     }
                     else
                     {
                         error(19);
                     }
-           
+
         }
         else if(symbol==CHARSYM)
         {
@@ -650,23 +710,23 @@ void constdec()
                 while(symbol!=IDEN&&isFileEnd==FALSE)
 					getsym();
             }
-			
+
 			getsym();
                 if(symbol==ASSIGN)
                 {
                     getsym();
-                    
+
 
                 }
                 else
                 {
                     error(18);
                 }
-			
+
                 if(symbol!=CHARCST)
                     {
 						error(20);
-                        while(symbol!=CHARCST)
+                        while(symbol!=CHARCST&&isFileEnd==FALSE)
 							getsym();
                     }
 
@@ -682,17 +742,17 @@ void constdec()
                                     if(symbol==ASSIGN)
                                     {
                                         getsym();
-                                       
+
                                     }
                                     else
                                     {
                                         error(18);
                                     }
-									
+
 									 if(symbol!=CHARCST)
                                         {
 											error(20);
-                                            while(symbol!=CHARCST)
+                                            while(symbol!=CHARCST&&isFileEnd==FALSE)
 												getsym();
                                         }
                                         getsym();
@@ -707,16 +767,20 @@ void constdec()
                                 error(19);
                             }
                         }
-                        else if(symbol==SEMICOLON)
+                        if(symbol==SEMICOLON)
                         {
-
+                            getsym();
+                            if(symbol==CONSTSYM)
+                            {
+                                constdec();
+                            }
                         }
                         else
                         {
                             error(19);
                         }
         }
-        
+
     }
 }
 
@@ -739,7 +803,7 @@ void funcdecvo()
 
 void mixsta()
 {
-
+    getsym();
 }
 
 void statements()
@@ -808,22 +872,22 @@ void isint()
 	if(symbol!=PLUS&&symbol!=MINUS&&symbol!=NUMBER)
 	{
 		error(15);
-		while(symbol!=PLUS&&symbol!=MINUS&&symbol!=NUMBER)
+		while(symbol!=PLUS&&symbol!=MINUS&&symbol!=NUMBER&&isFileEnd==FALSE)
 			getsym();
 	}
-	
+
     if(symbol==PLUS)
     {
         getsym();
         if(symbol!=NUMBER)
         {
 			error(16);
-			while(symbol!=NUMBER)
+			while(symbol!=NUMBER&&isFileEnd==FALSE)
 				getsym();
-            
+
         }
 		getsym();
-       
+
     }
     else if(symbol==MINUS)
     {
@@ -831,7 +895,7 @@ void isint()
         if(symbol!=NUMBER)
         {
             error(16);
-			while(symbol!=NUMBER)
+			while(symbol!=NUMBER&&isFileEnd==FALSE)
 				getsym();
         }
         num = 0-num;
@@ -841,7 +905,7 @@ void isint()
     {
         getsym();
     }
-    
+
 }
 
 void vartopro()
@@ -873,20 +937,20 @@ void vartopro()
             }
             getsym();
         }
-		
+
 		else
         {
 			num = 10;
             error(3);
-			
+
         }
-		
-		
+
+
 
             if(symbol!=RBKET)
             {
 				error(5);
-                
+
 
             }
             getsym();
@@ -903,8 +967,8 @@ void vartopro()
                         error(2);
                     }
                 }
-		
-        
+
+
     }
 
     if(symbol==SEMICOLON)
@@ -918,7 +982,7 @@ void vartopro()
 				error(1);
                 while(symbol!=IDEN&&isFileEnd==FALSE)
 					getsym();
-                
+
             }
 			getsym();
             if(symbol==COMMA||symbol==SEMICOLON||symbol==LBKET)
@@ -949,7 +1013,7 @@ void parameter()
 			error(1);
             while(symbol!=IDEN&&isFileEnd==FALSE)
 				getsym();
-           
+
         }
         getsym();
         if(symbol==COMMA)
@@ -969,7 +1033,7 @@ void fictopro()
     if(symbol!=LPAREN)
     {
 		error(7);
-        while(symbol!=LPAREN)
+        while(symbol!=LPAREN&&isFileEnd==FALSE)
 			getsym();
     }
 
@@ -982,7 +1046,7 @@ void fictopro()
         if(symbol!=RPAREN)
         {
            error(9);
-		   while(symbol!=RPAREN)
+		   while(symbol!=RPAREN&&isFileEnd==FALSE)
 			   getsym();
         }
 		 getsym();
@@ -991,8 +1055,8 @@ void fictopro()
 				error(10);
 					while(symbol!=LBRACE&&isFileEnd==FALSE)
 						getsym();
-				
-               
+
+
             }
              mixsta();
                 if(symbol!=RBRACE)
@@ -1000,17 +1064,17 @@ void fictopro()
 					error(11);
 					while(symbol!=RBRACE&&isFileEnd==FALSE)
 						getsym();
-                    
+
                 }
                 getsym();
-				
+
 				if(symbol!=INTSYM&&symbol!=CHARSYM&&symbol!=VOIDSYM)
 				{
 					error(12);
 					while(symbol!=INTSYM&&symbol!=CHARSYM&&symbol!=VOIDSYM&&isFileEnd==FALSE)
 						getsym();
 				}
-				
+
                     if(symbol==INTSYM||CHARSYM)
                     {
                         getsym();
@@ -1019,7 +1083,7 @@ void fictopro()
 							error(1);
 							while(symbol!=IDEN&&isFileEnd==FALSE)
 								getsym();
-                           
+
                         }
                         getsym();
                         fictopro();
@@ -1032,9 +1096,9 @@ void fictopro()
                             fvotopro();
                         }
                     }
-                    
-        
-	
+
+
+
 }
 
 void fvotopro()
@@ -1042,12 +1106,12 @@ void fvotopro()
     if(symbol!=IDEN)
     {
 		error(13);
-		while(symbol!=IDEN)
+		while(symbol!=IDEN&&isFileEnd==FALSE)
 			getsym();
-        
+
     }
     getsym();
-        fictopro();
+    fictopro();
 }
 
 
@@ -1056,27 +1120,27 @@ void ismain()
     if(symbol!=MAINSYM)
     {
        error(14);
-	   while(symbol!=MAINSYM)
+	   while(symbol!=MAINSYM&&isFileEnd==FALSE)
 		   getsym();
-        
+
     }
-	
+
 	 getsym();
         if(symbol!=LPAREN)
         {
 			error(7);
-			while(symbol!=LPAREN)
+			while(symbol!=LPAREN&&isFileEnd==FALSE)
 				getsym();
-            
+
         }
-		
+
 		getsym();
             if(symbol!=RPAREN)
             {
 				error(9);
-				while(symbol!=RPAREN)
+				while(symbol!=RPAREN&&isFileEnd==FALSE)
 					getsym();
-                
+
             }
             getsym();
                 if(symbol!=LBRACE)
@@ -1085,22 +1149,22 @@ void ismain()
 					while(symbol!=LBRACE&&isFileEnd==FALSE)
 						getsym();
                 }
-				
+
 				getsym();
                     mixsta();
                     if(symbol!=RBRACE)
                     {
 						error(11);
-						while(symbol!=RBRACE)
+						while(symbol!=RBRACE&&isFileEnd==FALSE)
 							getsym();
-                        
+
                     }
                     printf("compiler file is end.\n");
                         return;
-				
-                
-		
-	
+
+
+
+
 }
 
 //注意声明的顺序
@@ -1119,7 +1183,7 @@ void program()
 			error(1);
 			while(symbol!=IDEN&&isFileEnd==FALSE)
 				getsym();
-            
+
         }
 
         getsym();
@@ -1133,6 +1197,23 @@ void program()
             fictopro();
         }
     }
+
+    if(symbol==VOIDSYM)
+    {
+        getsym();
+        if(symbol==IDEN)
+        {
+            fvotopro();
+        }
+
+    }
+
+    if(symbol==MAINSYM)
+    {
+        ismain();
+    }
+
+
 }
 
 
@@ -1149,7 +1230,8 @@ int main()
     if(i==0)
         return 0;
 
-    printgetsym();
+    program();
+    //printgetsym();
 
     /*
     if(freopen("output.txt","w",stdout)==NULL)
@@ -1159,7 +1241,8 @@ int main()
     }
     */
 
+    printf("end of the main\n");
     free(file);
-       return 0;
+    return 0;
 }
 

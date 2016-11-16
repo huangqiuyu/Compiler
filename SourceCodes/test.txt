@@ -1,0 +1,43 @@
+const int cia = 1;
+const int cib = 2,cic = 3;
+const char cca = 'a';
+const char ccb = 'b',ccc = 'c';
+
+int via;
+int vib[10];
+int vic,vid[9],vie;
+int vif[2],vig;
+int vih,vii;
+int vij[5],vik[3];
+
+char via;
+char vib[10];
+char vic,vid[9],vie;
+char vif[2],vig;
+char vih,vii;
+char vij[5],vik[3];
+
+int fia(){}
+int fib(int pia){}
+int fic(int pib,int pic){}
+int fid(int pid,char pca){}
+int fie(char pcb,int pie){}
+int fif(char pcc,char pcd){}
+int fig(char pce){}
+char fca(){}
+char fcb(int cpia){}
+char fcc(int cpib,int cpic){}
+char fcd(int cpid,char cpca){}
+char fce(char cpcb,int cpie){}
+char fcf(char cpcc,char cpcd){}
+char fcg(char cpce){}
+void fva(){}
+void fvb(int vpia){}
+void fvc(int vpib,int vpic){}
+void fvd(int vpid,char vpca){}
+void fve(char vpcb,int vpie){}
+void fvf(char vpcc,char vpcd){}
+void fvg(char vpce){}
+
+void main()
+{}
