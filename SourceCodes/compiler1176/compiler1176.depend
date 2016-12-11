@@ -1,0 +1,7 @@
+# depslib dependency file v1.0
+1481445236 source:c:\users\forever\documents\github\compiler\sourcecodes\compiler1176\main.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<malloc.h>
+

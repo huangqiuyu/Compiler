@@ -1,0 +1,294 @@
+const int cia = 1;
+const int cib = 2,cic = 3;
+const char cca = 'a';
+const char ccb = 'b',ccc = 'c';
+
+
+int via;
+int vib[10];
+int vic,vid[9],vie;
+int vif[2],vig;
+int vih,vii;
+int vij[5],vik[3];
+
+
+int fia(){
+return (0);
+}
+int fib(int pia){return (pia);}
+int fic(int pib,int pic){return (pib);}
+int fid(int pid,char pca){return (pid);}
+int fie(char pcb,int pie){return (pie);}
+int fif(char pcc,char pcd){return (0);}
+int fig(char pce){return (0);}
+
+char fca(){return ('q');}
+char fcb(int cpia){return ('q');}
+char fcc(int cpib,int cpic){return ('q');}
+char fcd(int cpid,char cpca){return (cpca);}
+char fce(char cpcb,int cpie){return (cpcb);}
+char fcf(char cpcc,char cpcd){return (cpcc);}
+char fcg(char cpce){return (cpce);}
+
+void fva(){}
+void fvb(int vpia){}
+void fvc(int vpib,int vpic){}
+void fvd(int vpid,char vpca){}
+void fve(char vpcb,int vpie){}
+void fvf(char vpcc,char vpcd){}
+void fvg(char vpce){}
+void fvh(){;}
+
+int fii()
+{
+    const int fiia=1;
+	return (fiia);
+}
+int fij()
+{
+    char fijc;
+	return (0);
+}
+int fik()
+{
+    return (0);
+}
+int f_re_i()
+{
+    const int fikci=10;
+
+
+    return (fikci);
+}
+char fci()
+{
+    const char fiia='1';
+	return (fiia);
+}
+char fcj()
+{
+    char fijc;
+	return (fijc);
+}
+char fik()
+{
+    return ('q');
+}
+char f_re_c()
+{
+    const char fikci='a';
+
+
+    return (fikci);
+}
+
+
+int inout()
+{
+    const int NUMBER=14061176;
+    int i,j;
+    char c,s;
+    printf("the coder's number is: ",NUMBER);
+
+    printf("please input one number:");
+    scanf(i);
+    printf("the number you input is:",i);
+
+    printf("please input one character:");
+    scanf(c);
+    printf("the character you input is:",i);
+
+    printf("please input one number and one character:");
+    scanf(j,s);
+    printf("the number you input is:",j);
+    printf("the character you input is:",s);
+
+    printf("please input one character and one number:");
+    scanf(s,j);
+    printf("the character you input is:",s);
+    printf("the number you input is:",j);
+
+    printf("the sum of your input numbers is:");
+    printf(i+j);
+
+    return (i+j);
+}
+
+
+char loop()
+{
+    const int MAX=10,MIN=0;
+    const char a='a',z='z';
+    int i,j,k;
+    char s[10],c;
+
+
+    for(i=MIN;i<MAX;i=i+1)
+    {
+        s[i]='a';
+        j=j+2;
+    }
+
+    for(i=MIN;i<MAX;i=i+1)
+        printf(s[i]);
+
+    for(i=MIN;0;i=i+1);
+
+    for(i=MAX;i>=MIN;i=i-1)
+    {
+        printf("please input one number:");
+        scanf(k);
+
+        if(k==10)
+            printf("k is equals 10");
+
+        if(k>10)
+            printf("k is bigger than 10");
+        else
+            printf("k is not bigger than 10");
+
+        if(0)
+            printf("false");
+        else
+            printf("true");
+
+        if(k==7)
+            ;
+        else
+            printf("k is not equals 7");
+
+        if(k==0)
+            ;
+        else
+            ;
+
+        if(k==2)
+            printf("k is equals 2");
+        else
+            ;
+    }
+
+
+    do
+    {
+        for(i=MIN;i<MAX;i=i+1);
+        j=j+1;
+    }
+    while(j<100)
+
+    do
+        j=j+1;
+    while(j<130)
+
+    do
+        ;
+    while(0)
+
+
+    printf("please input one character:");
+    scanf(c);
+    if(c=='c')
+        for(i=MIN;i<MAX;i=i+1)
+            j=j+1;
+    else
+        do
+            j=j+1;
+        while(j<200)
+
+
+    if(c=='a')
+        printf("the character you input is 'a'");
+    else if(c=='b')
+        printf("the character you input is 'b'");
+    else if(c=='c')
+        printf("the character you input is 'c'");
+    else if(c=='d')
+        printf("the character you input is 'd'");
+    else printf("the character you input is not 'abcd'");
+
+    return (c);
+}
+
+void call1()
+{
+    int i,j;
+    char c;
+
+
+    i = f_re_i();
+    c = f_re_c();
+    fva();
+    f_re_i();
+    f_re_c();
+}
+
+int fibonacci(int n)
+{
+    if(n<=1)
+        return (n);
+    else
+        return (fibonacci(n-1)+fibonacci(n-2));
+}
+
+
+void main()
+{
+    const int NUM=14061176,MIN=1,MAX=10;
+    int n;
+    int _a,_b,_12,_a12,i,j;
+    char _ca,_cb,_11,_ac3,c;
+    char s[10];
+
+    printf("please input the n of fibonacci.");
+    scanf(n);
+    printf("the fibonacci of n is:");
+    for(i=1;i<=n;i=i+1)
+        printf(" ",fibonacci(i));
+
+    inout();
+    loop();
+
+
+    s[0] = 'a';
+    s[1] = 40;
+    s[2] = 'c';
+    _a = NUM;
+    _b = +NUM;
+    _12 = -NUM;
+    _a12 = MAX+NUM;
+    i = NUM-MIN;
+    j = MIN*MAX;
+    i = MAX/MIN;
+    i = s[0]+1;
+    i = s[1]*3;
+    i = f_re_i()+3+MAX*MIN;
+    i = 10+19*10;
+    i = 10*10+19;
+    i = -10+-19*10;
+    i = 10*-10+-19;
+    i = 10+19*-10;
+    i = f_re_i()+ f_re_i();
+    i = (1+1)*10+(2*3+10)/2;
+    i = ++10;
+    i = +'+'+10;
+    i = +'+'+'+';
+    i = +(++9);
+    i = +(-8);
+    i = +-7;
+    i = --6;
+    i = -(--5);
+    i = (12);
+    i = (-'c');
+    i = (-10);
+    i = '0';
+    i = 0;
+    i = +0;
+    i = -0;
+    i = fibonacci(1)+0;
+    i = (fibonacci(1)+9)*(3+fibonacci(2))+11-9/3+(32*2);
+    c = fibonacci(2)+'0';
+    c = i;
+    c = i+c;
+    s[i-i] = s[fibonacci(1)]+3;
+    s[fibonacci(2)+fibonacci(1)] = s[fibonacci(1)];
+}

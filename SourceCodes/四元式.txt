@@ -1,0 +1,44 @@
+ADD		0
+SUB		1
+MUL		2
+DIV		3
+BIG		4
+SMA		5
+EQU		6
+BEQU	7
+SEQU	8
+NOT		9
+NEQU	10
+ASN		11
+BEQ		12
+GOTO	13
+LAB		14
+GLOBEG	15
+BEGIN	16
+END		17
+SW		18
+LW		19
+CALL	20
+FORM	21
+RETURN	22
+PARA	23
+ADDI	24
+SUBI	25
+RD		26
+WRT		27
+JR		28
+
+genemips(ASN)
+rd,rs,k,t
+
+(BEGIN)
+initreg();
+
+allocreg()
+==,=
+
+isalloc()
+return (i+8)
+
+
+

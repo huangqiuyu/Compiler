@@ -49,6 +49,20 @@
 #define FALSE -1
 #define TRUE 0
 
+
+#define REGGSUM    12
+#define REGGBASIC   14
+
+#define REGLWSUM    6
+#define REGLWBASIC  8
+
+#define REGARRAYSUM 3
+#define REGARRAYBASIC   5
+
+#define RESERVE 16
+
+
+
 #define MAXPATH 60  //the string of file path's max size 输入文件的路径字符串的最大值
 #define MAXLS   1000 //max one line size of input file 输入文件中一行的字符数的最大值
 #define MAXIDS  20  //max size of identifier 一个标识符长度的最大值
@@ -59,7 +73,8 @@
 #define MAXTEMP     4000  //中间临时变量的数量
 #define MAXMSTACK   10000     //
 #define MAXLABELS   300 //最大标签数
-
+#define MAXBLOCKS   3000 //最大块数
+#define MAXDAGNODES 1000    //dag图节点数最大值
 
 
 //四元式操作符定义
@@ -86,12 +101,14 @@
 #define	CALL	20
 #define	FORM	21
 #define	RETURN	22
-#define PARA 23
+#define DEL 23
 #define	ADDI	24
 #define	SUBI	25
 #define	RD	26
 #define	WRT	27
 #define JR 28
+#define	LOOPBEGIN	29
+#define	LOOPEND	30
 
 
 
@@ -127,7 +144,7 @@ int stackindex=1;
 
 
 //分配寄存器编号，轮盘制
-int regid=0;
+//int regid=0;
 
 
 int curcompifunid=0;//当前编译的函数的medsindex
@@ -149,7 +166,7 @@ int offset=0;
 int tmpoffset = 0;
 
 
-int calmyparasum = 0;
+int calmyparasum = 0;//本函数定义时的参数个数
 
 //table 符号表
 struct{
@@ -163,10 +180,30 @@ struct{
     int length;     //
     int locate;     //
     int index;  //在中间栈中的索引id
-    int tmpbasic;
+    int distru;
     int myparasum;//the sum of function parameter
+    int callparasum;
+    int paraid;
+    int num;
+    int beginid;
+    int endid;
 
 }table[MAXTAB];
+
+
+struct{
+    int id;
+    int op;
+    int left;
+    int right;
+}dagnodes[MAXDAGNODES];
+int dagnodindex = 0;
+
+struct{
+    int medsid;
+    int nodeid;
+}dagtable[MAXDAGNODES];
+int dagtabindex = 0;
 
 
 //四元式
@@ -175,6 +212,7 @@ struct{
     int rs;
     int rt;
     int rd;
+    int dagnodeid;
 }medial[MAXMEDI];
 int medialindex=0;
 
@@ -182,8 +220,10 @@ int medialindex=0;
 //临时变量表
 struct{
     int type;//1:int,2:char
-    int valuei;
-    char valuec;
+    int num;
+    int regid;
+    int addr;
+    int scope;
 }tempv[MAXTEMP];
 int tempvindex=0;
 
@@ -194,15 +234,36 @@ struct{
     int tbindex;
     int tpindex;
     int lableindex;
+    int num;//被引用次数
 }medstack[MAXMSTACK];
 int medsindex=0;
 
 
-//临时寄存器
+
+struct{
+    int id;
+    int num;
+}statis[MAXMSTACK];
+
+
+//全局寄存器
 struct{
     int distribute;//是否已分配
     int index;
-}registers[21];
+}globalregs[REGGSUM];
+
+//用于访问内存寻址
+struct{
+    int distribute;
+    int index;
+}lwregs[REGLWSUM];
+
+
+//用于数组的操作
+struct{
+    int distribute;
+    int index;
+}arrayregs[REGARRAYSUM];
 
 
 //标签，主要用于if-else，for等，函数不需要
@@ -214,9 +275,18 @@ struct{
 int labelindex=0;
 
 
+
+struct{
+    int beginid;//指向四元式
+    int endid;//指向四元式
+    int scope;//当前作用的函数
+}blocks[MAXBLOCKS];
+int blocksindex = 0;
+
+
 //标签栈，保存已经生成但未使用的标签，生成时进栈，使用后退栈
-int labelstack[MAXLABELS];
-int labstaindex = 0;
+//int labelstack[MAXLABELS];
+//int labstaindex = 0;
 
 
 
@@ -225,7 +295,7 @@ int tableindex=0;//index of table
 char strings[MAXSTRLENG][MAXSTR];
 int strindex=0;
 
-int isjmain = TRUE;
+//int isjmain = TRUE;
 
 
 
@@ -233,7 +303,7 @@ int isjmain = TRUE;
 //function declare
 
 int findtable(char name[MAXIDS],int obj);
-int ftableindex(char name[MAXIDS]);
+int ftableindex(char name[MAXIDS],int type);
 void genlabel();
 void malloctb(int index);
 void mallocint();
@@ -275,6 +345,25 @@ void fvotopro();
 void ismain();
 void program();
 
+//优化相关
+void genblocks();
+int finddagtable(int index);
+void finddagnode1(int op,int left,int right,int result,int medindex);
+void finddagnode2(int op,int left,int right,int result,int medindex);
+void finddagnode3(int op,int left,int result,int medindex);
+void dag();
+void alloc();
+int openoutput();
+void printsw();
+void printlw();
+void checkpara(int funtabid);
+int calreg(int num,int medid);
+void swreg(int medid,int regid);
+
+
+void genemips();
+
+
 
 
 
@@ -283,6 +372,7 @@ void program();
 
 //主要用于查重复定义，全局变量和局部变量可以重名
 //若是局部变量只需要查函数内部是否重复定义，不需要查函数外部的全局变量
+
 int findtable(char name[MAXIDS],int obj)
 {
     int i;
@@ -327,6 +417,15 @@ int findtable(char name[MAXIDS],int obj)
             }
             return -1;
             break;
+        case 7:
+            for(i=tableindex-1;i>=0&&table[i].scope==curscope;i--)
+            {
+                if(strcmp(name,table[i].name)==0)
+                    return i;
+            }
+            return -1;
+            break;
+
     }
 
 
@@ -337,36 +436,74 @@ int findtable(char name[MAXIDS],int obj)
 
 //主要用于运算的时候查表，查最靠近栈顶的位置，
 //若是出现在函数内，不仅要查局部变量还要查全局变量。
-int ftableindex(char name[MAXIDS])
+//type为3，函数；1：变量或常量或参数（全局局部）；2：数组
+int ftableindex(char name[MAXIDS],int type)
 {
     int i;
     if(tableindex==0)
         return -1;
 
-    for(i=tableindex-1;i>=0&&table[i].scope==curscope;i--)
-    {
-        if(strcmp(name,table[i].name)==0)
-            return i;
-    }
 
-    for(i=0;i<=MAXTAB&&table[i].scope==0;i++)
+    switch(type)
     {
-        if(strcmp(name,table[i].name)==0)
-        {
-            return i;
-        }
-    }
-
-    for(i=0;i<=MAXTAB&&i<=tableindex;i++)
-    {
-        if(table[i].obj==3)
-        {
-            if(strcmp(name,table[i].name)==0)
+        case 1:
+            for(i=tableindex-1;i>=0&&table[i].scope==curscope;i--)
             {
-                return i;
+                if(table[i].obj==1||table[i].obj==2||table[i].obj==4)
+                {
+                    if(strcmp(name,table[i].name)==0)
+                        return i;
+                }
+
             }
-        }
+
+            for(i=0;i<=MAXTAB&&table[i].scope==0;i++)
+            {
+                if(table[i].obj==1||table[i].obj==2)
+                {
+                    if(strcmp(name,table[i].name)==0)
+                        return i;
+                }
+            }
+
+
+            break;
+
+        case 2:
+            for(i=tableindex-1;i>=0&&table[i].scope==curscope;i--)
+            {
+                if(table[i].obj==7)
+                {
+                    if(strcmp(name,table[i].name)==0)
+                        return i;
+                }
+
+            }
+
+            for(i=0;i<=MAXTAB&&table[i].scope==0;i++)
+            {
+                if(table[i].obj==7)
+                {
+                    if(strcmp(name,table[i].name)==0)
+                        return i;
+                }
+            }
+            break;
+
+        case 3:
+            for(i=0;i<=MAXTAB&&i<=tableindex;i++)
+            {
+                if(table[i].obj==3)
+                {
+                    if(strcmp(name,table[i].name)==0)
+                    {
+                        return i;
+                    }
+                }
+            }
+            break;
     }
+
 
 
     return -1;
@@ -402,7 +539,7 @@ void malloctb(int index)
     medstack[medsindex].tbindex = index;
     medstack[medsindex].tpindex = -1;
     medstack[medsindex].lableindex = -1;
-
+    medstack[medsindex].num = 0;
     table[index].index = medsindex;
 
     medsindex++;
@@ -413,10 +550,15 @@ void malloctb(int index)
 void mallocint()
 {
     tempv[tempvindex].type = 1;
+    tempv[tempvindex].num = 0;
+    tempv[tempvindex].regid = -1;
+    tempv[tempvindex].addr = -1;
+    tempv[tempvindex].scope = curscope;
     medstack[medsindex].id = medsindex;
     medstack[medsindex].tbindex = -1;
     medstack[medsindex].tpindex = tempvindex;
     medstack[medsindex].lableindex = -1;
+    medstack[medsindex].num = 0;
     tempvindex++;
     medsindex++;
 
@@ -425,10 +567,15 @@ void mallocint()
 void mallocchar()
 {
     tempv[tempvindex].type = 2;
+    tempv[tempvindex].num = 0;
+    tempv[tempvindex].regid = -1;
+    tempv[tempvindex].addr = -1;
+    tempv[tempvindex].scope = curscope;
     medstack[medsindex].id = medsindex;
     medstack[medsindex].tbindex = -1;
     medstack[medsindex].tpindex = tempvindex;
     medstack[medsindex].lableindex = -1;
+    medstack[medsindex].num = 0;
     tempvindex++;
     medsindex++;
 }
@@ -440,7 +587,7 @@ void malloclab(int index)
     medstack[medsindex].tbindex = -1;
     medstack[medsindex].tpindex = -1;
     medstack[medsindex].lableindex = index;
-
+    medstack[medsindex].num = 0;
     labels[index].index = medsindex;
 
     medsindex++;
@@ -452,6 +599,7 @@ void genmedi(int o,int rs,int rt,int rd)
     medial[medialindex].rs = rs;
     medial[medialindex].rt = rt;
     medial[medialindex].rd = rd;
+    medial[medialindex].dagnodeid = -1;
     medialindex++;
 }
 
@@ -581,15 +729,15 @@ void error(int i)
             break;
 
         case 27:
-            printf("ERROR!!!!!因子推出表达式时缺少右括号\)\n");
+            printf("ERROR!!!!!因子推出表达式时缺少右括号)\n");
             break;
 
         case 28:
-            printf("ERROR!!!!!if后面少了左括号\(\n");
+            printf("ERROR!!!!!if后面少了左括号(\n");
             break;
 
         case 29:
-            printf("ERROR!!!!!if后面少了右括号\)\n");
+            printf("ERROR!!!!!if后面少了右括号)\n");
             break;
 
         case 30:
@@ -689,12 +837,12 @@ void error(int i)
             printf("ERROR!!!!!不能给函数赋值\n");
             break;
 
-        case 54:
-            //printf("ERROR!!!!!读语句不能对参数赋值\n");
-            break;
+        //case 54:
+         //   printf("ERROR!!!!!读语句不能对参数赋值\n");
+           // break;
 
         case 55:
-            printf("ERROR!!!!!数组的标识符不对，而且其他常量或函数名\n");
+            printf("ERROR!!!!!数组的标识符不对，不能为其他常量或函数名\n");
             break;
 
         case 56:
@@ -711,6 +859,22 @@ void error(int i)
 
         case 59:
             printf("ERROR!!!!!函数调用与定义的参数个数不符\n");
+            break;
+
+        case 60:
+            printf("ERROR!!!!!函数调用时参数声明类型与调用时不符\n");
+            break;
+
+        case 61:
+            printf("ERROR!!!!!赋值语句标识符声明的类型和赋值的类型不符\n");
+            break;
+
+        case 62:
+            printf("ERROR!!!!!数组下标不能为字符，应该是数字\n");
+            break;
+
+        case 63:
+            printf("ERROR!!!!!函数返回值定义的类型与实际返回的不一致\n");
             break;
     }
 
@@ -1306,6 +1470,10 @@ void constopro()
             table[tableindex].type = 1;
             table[tableindex].valuei = num;
             table[tableindex].scope = curscope;
+            table[tableindex].length = 0;
+            table[tableindex].distru = -1;
+            table[tableindex].num = 0;
+
             malloctb(tableindex);
             tableindex++;
 
@@ -1348,6 +1516,9 @@ void constopro()
                         table[tableindex].type = 1;
                         table[tableindex].valuei = num;
                         table[tableindex].scope = curscope;
+                        table[tableindex].length = 0;
+                        table[tableindex].distru = -1;
+                        table[tableindex].num = 0;
                         malloctb(tableindex);
                         tableindex++;
                     }
@@ -1432,6 +1603,10 @@ void constopro()
                 table[tableindex].type = 2;
                 table[tableindex].valuec = chconst;
                 table[tableindex].scope = curscope;
+                table[tableindex].length = 0;
+                table[tableindex].distru = -1;
+
+                table[tableindex].num = 0;
                 malloctb(tableindex);
                 tableindex++;
 
@@ -1481,6 +1656,10 @@ void constopro()
                                     table[tableindex].type = 2;
                                     table[tableindex].valuec = chconst;
                                     table[tableindex].scope = curscope;
+                                    table[tableindex].length = 0;
+                                    table[tableindex].distru = -1;
+
+                                    table[tableindex].num = 0;
                                     malloctb(tableindex);
                                     tableindex++;
                                         getsym();
@@ -1585,6 +1764,10 @@ void constdec()
 
             table[tableindex].valuei = num;
             table[tableindex].scope = curscope;
+            table[tableindex].length = 0;
+            table[tableindex].distru = -1;
+
+            table[tableindex].num = 0;
 
             malloctb(tableindex);
 
@@ -1628,6 +1811,9 @@ void constdec()
 
                         table[tableindex].valuei = num;
                         table[tableindex].scope = curscope;
+                        table[tableindex].length = 0;
+                        table[tableindex].distru = -1;
+                        table[tableindex].num = 0;
                         malloctb(tableindex);
                         tableindex++;
 
@@ -1714,6 +1900,9 @@ void constdec()
 
                     table[tableindex].valuec = chconst;
                     table[tableindex].scope = curscope;
+                    table[tableindex].length = 0;
+                    table[tableindex].distru = -1;
+                    table[tableindex].num = 0;
                     malloctb(tableindex);
                     tableindex++;
 
@@ -1764,6 +1953,9 @@ void constdec()
 
                                     table[tableindex].valuec = chconst;
                                     table[tableindex].scope = curscope;
+                                    table[tableindex].length = 0;
+                                    table[tableindex].distru = -1;
+                                    table[tableindex].num = 0;
                                     malloctb(tableindex);
                                     tableindex++;
 
@@ -1810,25 +2002,11 @@ void tovardec()
 {
     if(symbol==COMMA)
     {
-        if(table[tableindex].type==0)
-        {
-            if(tmpstack[stackindex]==INTSYM)
-            {
-                table[tableindex].type = 1;
 
-            }
 
-            else if(tmpstack[stackindex]==CHARSYM)
-            {
-                table[tableindex].type = 2;
-            }
-
-            malloctb(tableindex);
+        malloctb(tableindex);
             //genmedi(SW,medsindex-1,0,0);
 
-
-
-        }
 
         tableindex++;
 
@@ -1842,16 +2020,20 @@ void tovardec()
 				error(49);
             strcpy(table[tableindex].name,id);
             table[tableindex].obj = 2;
+
             if(tmpstack[stackindex]==INTSYM)
                 table[tableindex].type = 1;
             else if(tmpstack[stackindex]==CHARSYM)
                 table[tableindex].type = 2;
 
-            malloctb(tableindex);
+            //malloctb(tableindex);
             //genmedi(SW,medsindex-1,0,0);
 
             table[tableindex].offset = tmpoffset++;
             table[tableindex].scope = curscope;
+            table[tableindex].length = 0;
+            table[tableindex].distru = -1;
+            table[tableindex].num = 0;
 
            // tableindex++;
 
@@ -1869,10 +2051,7 @@ void tovardec()
 
     if(symbol==LBKET)
     {
-        if(tmpstack[stackindex]==INTSYM)
-            table[tableindex].type = 3;
-        else if(tmpstack[stackindex]==CHARSYM)
-            table[tableindex].type = 4;
+        table[tableindex].obj = 7;
 
         tmpoffset--;
 
@@ -1915,7 +2094,7 @@ void tovardec()
 				return;
 		}
 
-		malloctb(tableindex);
+		//malloctb(tableindex);
         //genmedi(SW,medsindex-1,0,0);
 
         //tableindex++;
@@ -1923,7 +2102,8 @@ void tovardec()
 
          if(symbol==COMMA)
         {
-            tableindex++;
+                malloctb(tableindex);
+                tableindex++;
 
                 getsym();
 				if(isFileEnd==TRUE)
@@ -1935,11 +2115,17 @@ void tovardec()
                     strcpy(table[tableindex].name,id);
                     table[tableindex].obj = 2;
 
+                    if(tmpstack[stackindex]==INTSYM)
+                        table[tableindex].type = 1;
+                    else if(tmpstack[stackindex]==CHARSYM)
+                        table[tableindex].type = 2;
+
                     table[tableindex].offset = tmpoffset++;
                     table[tableindex].scope = curscope;
 
-                    table[tableindex].type = 0;
-
+                    table[tableindex].length = 0;
+                    table[tableindex].distru = -1;
+                    table[tableindex].num = 0;
 
                     getsym();
 						if(isFileEnd==TRUE)
@@ -1956,21 +2142,9 @@ void tovardec()
 
     if(symbol==SEMICOLON)
     {
-        if(table[tableindex].type==0)
-        {
-            if(tmpstack[stackindex]==INTSYM)
-            {
-                table[tableindex].type = 1;
 
-            }
+        malloctb(tableindex);
 
-            else if(tmpstack[stackindex]==CHARSYM)
-            {
-                table[tableindex].type = 2;
-            }
-
-            malloctb(tableindex);
-        }
 
 
         stackindex--;
@@ -1994,13 +2168,19 @@ void vardec()
     if(symbol==INTSYM||symbol==CHARSYM)
     {
         tmpstack[++stackindex] = symbol;
+        if(symbol==INTSYM)
+            table[tableindex].type = 1;
+        else if(symbol==CHARSYM)
+            table[tableindex].type = 2;
 
         table[tableindex].obj = 2;
-        table[tableindex].type = 0;
-
 
         table[tableindex].offset = tmpoffset++;
         table[tableindex].scope = curscope;
+
+        table[tableindex].length = 0;
+        table[tableindex].distru = -1;
+        table[tableindex].num = 0;
 
 
 
@@ -2083,6 +2263,7 @@ void statements()
 void statemt()
 {
     int idenid;
+    char tmpid[MAXIDS];
     if(symbol==IFSYM)
     {
         ifsta();
@@ -2120,7 +2301,7 @@ void statemt()
     else if(symbol==IDEN)
     {
 
-        idenid = ftableindex(id);
+        strcpy(tmpid,id);
 
         getsym();
         if(isFileEnd==TRUE)
@@ -2128,10 +2309,11 @@ void statemt()
 
         if(symbol==LPAREN)
         {
+            idenid = ftableindex(tmpid,3);
             if(idenid<0)
             {
                 error(51);
-
+                idenid = 0;
             }
             else
             {
@@ -2156,11 +2338,14 @@ void statemt()
         }
         else if(symbol==LBKET||symbol==ASSIGN)
         {
-
+            if(symbol==LBKET)
+                idenid = ftableindex(tmpid,2);
+            else
+                idenid = ftableindex(tmpid,1);
             if(idenid<0)
             {
                 error(51);
-
+                idenid = 0;
             }
             else
             {
@@ -2398,6 +2583,9 @@ void loopsta()
 {
     int dolabel,beqs,forlabel1,forlabel2;
     int tmp1,tmp2,idenid,tmpnum;
+    int idenidtype;//idenidtablid,idenidtmpid,
+    int tmp1tableid,tmp1tmpid,tmp1type;
+    int tmp2type;//tmp2tableid,tmp2tmpid,
     int addorsub=0;
 
     if(symbol==DOSYM)
@@ -2407,6 +2595,7 @@ void loopsta()
         dolabel = medsindex - 1;
 
         genmedi(LAB,dolabel,0,0);
+        genmedi(LOOPBEGIN,0,0,0);
 
         getsym();
         if(isFileEnd==TRUE)
@@ -2444,6 +2633,7 @@ void loopsta()
         beqs = condition();
 
         genmedi(BEQ,beqs,0,dolabel);
+        genmedi(LOOPEND,0,0,0);
 
         if(symbol!=RPAREN)
         {
@@ -2484,12 +2674,13 @@ void loopsta()
             }
         }
 
-        idenid = ftableindex(id);
+        idenid = ftableindex(id,1);
 
         if(idenid<0)
         {
             error(51);
-
+            idenid = 0;
+            idenidtype = table[idenid].type;
         }
         else
         {
@@ -2501,10 +2692,12 @@ void loopsta()
             {
                 error(53);
             }
-
+            idenidtype = table[idenid].type;
             idenid = table[idenid].index;
 
         }
+
+
 
          getsym();
         if(isFileEnd==TRUE)
@@ -2520,7 +2713,26 @@ void loopsta()
             if(isFileEnd==TRUE)
                 return;
         }
+
+
         tmp1 = expression();
+
+        if(medstack[tmp1].tbindex!=-1)
+        {
+            tmp1tableid = medstack[tmp1].tbindex;
+            tmp1type = table[tmp1tableid].type;
+        }
+        else if(medstack[tmp1].tpindex!=-1)
+        {
+            tmp1tmpid = medstack[tmp1].tpindex;
+            tmp1type = tempv[tmp1tmpid].type;
+        }
+
+        if(idenidtype!=tmp1type)
+        {
+            error(61);
+
+        }
 
         genmedi(ASN,tmp1,0,idenid);
 
@@ -2533,6 +2745,7 @@ void loopsta()
         forlabel2 = medsindex -1;
 
         genmedi(LAB,forlabel1,0,0);
+        genmedi(LOOPBEGIN,0,0,0);
 
         if(symbol!=SEMICOLON)
         {
@@ -2578,12 +2791,13 @@ void loopsta()
                 }
             }
 
-            idenid = ftableindex(id);
+            idenid = ftableindex(id,1);
 
             if(idenid<0)
             {
                 error(51);
-
+                idenid = 0;
+                idenidtype = table[idenid].type;
             }
             else
             {
@@ -2595,7 +2809,7 @@ void loopsta()
                 {
                     error(53);
                 }
-
+                idenidtype = table[idenid].type;
                 idenid = table[idenid].index;
 
             }
@@ -2627,10 +2841,12 @@ void loopsta()
                 }
 
 
-                tmp2 = ftableindex(id);
+                tmp2 = ftableindex(id,1);
                 if(tmp2<0)
                 {
                     error(51);
+                    tmp2 = 0;
+                    tmp2type = table[tmp2].type;
                 }
                 else
                 {
@@ -2638,9 +2854,15 @@ void loopsta()
                     {
                         error(53);
                     }
+                    tmp2type = table[tmp2].type;
                     tmp2 = table[tmp2].index;
+
                 }
 
+                if(tmp2type!=idenidtype)
+                {
+                    error(61);
+                }
 
                 getsym();
                 if(isFileEnd==TRUE)
@@ -2718,7 +2940,7 @@ void loopsta()
                 }
 
                 genmedi(GOTO,0,0,forlabel1);
-
+                genmedi(LOOPEND,0,0,0);
 
             }
 
@@ -2736,7 +2958,7 @@ void loopsta()
 void callsta(int idenid)
 {
 
-    int tmp1,i =0,callftableid;
+    int tmp1,i =0,callftableid,tmp1tableid,tmp1tmpid,tmp1type;
 
     if(symbol==LPAREN)
     {
@@ -2747,6 +2969,36 @@ void callsta(int idenid)
         if(symbol!=RPAREN)
         {
             tmp1 = expression();
+            callftableid = medstack[idenid].tbindex;
+
+            if(medstack[tmp1].tbindex!=-1)
+            {
+                tmp1tableid = medstack[tmp1].tbindex;
+                tmp1type = table[tmp1tableid].type;//1:int 2:char
+            }
+            else if(medstack[tmp1].tpindex!=-1)
+            {
+                tmp1tmpid = medstack[tmp1].tpindex;
+                tmp1type = tempv[tmp1tmpid].type;
+            }
+
+            if(table[callftableid].myparasum==0)
+            {
+                error(59);
+            }
+            if(table[callftableid+1].obj==4&&table[callftableid+1].paraid==0&&tmp1type!=table[callftableid+1].type)
+            {
+                error(60);
+                if(medstack[tmp1].tbindex!=-1)
+                {
+
+                    table[tmp1tableid].type = table[callftableid+1].type;//1:int 2:char
+                }
+                else if(medstack[tmp1].tpindex!=-1)
+                {
+                    tempv[tmp1tmpid].type = table[callftableid+1].type;
+                }
+            }
 
             genmedi(FORM,tmp1,i++,0);
 
@@ -2756,9 +3008,36 @@ void callsta(int idenid)
                 if(isFileEnd==TRUE)
                     return;
                 tmp1 = expression();
+
+                if(medstack[tmp1].tbindex!=-1)
+                {
+                    tmp1tableid = medstack[tmp1].tbindex;
+                    tmp1type = table[tmp1tableid].type;//1:int 2:char
+                }
+                else if(medstack[tmp1].tpindex!=-1)
+                {
+                    tmp1tmpid = medstack[tmp1].tpindex;
+                    tmp1type = tempv[tmp1tmpid].type;
+                }
+
+                //强制转换
+                if(table[callftableid+1+i].obj==4&&table[callftableid+1+i].paraid==i&&tmp1type!=table[callftableid+1+i].type)
+                {
+                    error(60);
+                    if(medstack[tmp1].tbindex!=-1)
+                    {
+
+                        table[tmp1tableid].type = table[callftableid+1+i].type;//1:int 2:char
+                    }
+                    else if(medstack[tmp1].tpindex!=-1)
+                    {
+                        tempv[tmp1tmpid].type = table[callftableid+1+i].type;
+                    }
+                }
+
                 genmedi(FORM,tmp1,i++,0);
             }
-            callftableid = medstack[idenid].tbindex;
+
             if(table[callftableid].myparasum!=(i))
             {
                 error(59);
@@ -2792,6 +3071,8 @@ void callsta(int idenid)
 void assignsta(int idenid)
 {
     int tmp1,tmp2;
+    int tmp1tabid,tmp1tmpid,tmp1type;
+    int tmp2tabid,tmp2tmpid,tmp2type;
     if(symbol==LBKET)
     {
         getsym();
@@ -2799,6 +3080,34 @@ void assignsta(int idenid)
             return;
 
         tmp1 = expression();
+        if(medstack[tmp1].tbindex!=-1)
+        {
+            tmp1tabid = medstack[tmp1].tbindex;
+            tmp1type = table[tmp1tabid].type;
+        }
+        else if(medstack[tmp1].tpindex!=-1)
+        {
+            tmp1tmpid = medstack[tmp1].tpindex;
+            tmp1type = tempv[tmp1tmpid].type;
+        }
+
+        if(tmp1type!=1)
+        {
+            error(62);
+        }
+
+        if(medstack[idenid].tbindex!=-1)
+        {
+            tmp1tabid = medstack[idenid].tbindex;
+            tmp1type = table[tmp1tabid].type;
+        }
+        else if(medstack[idenid].tpindex!=-1)
+        {
+            tmp1tmpid = medstack[idenid].tpindex;
+            tmp1type = tempv[tmp1tmpid].type;
+        }
+
+
         if(symbol!=RBKET)
         {
             error(5);
@@ -2817,6 +3126,22 @@ void assignsta(int idenid)
                 return;
             tmp2 = expression();
 
+            if(medstack[tmp2].tbindex!=-1)
+            {
+                tmp2tabid = medstack[tmp2].tbindex;
+                tmp2type = table[tmp2tabid].type;
+            }
+            else if(medstack[tmp2].tpindex!=-1)
+            {
+                tmp2tmpid = medstack[tmp2].tpindex;
+                tmp2type = tempv[tmp2tmpid].type;
+            }
+
+            if(tmp1type!=tmp2type)
+            {
+                error(61);
+            }
+
             genmedi(SW,idenid,tmp1,tmp2);
 
         }
@@ -2828,7 +3153,38 @@ void assignsta(int idenid)
         getsym();
         if(isFileEnd==TRUE)
             return;
+
+        if(medstack[idenid].tbindex!=-1)
+        {
+            tmp1tabid = medstack[idenid].tbindex;
+            tmp1type = table[tmp1tabid].type;
+        }
+        else if(medstack[idenid].tpindex!=-1)
+        {
+            tmp1tmpid = medstack[idenid].tpindex;
+            tmp1type = tempv[tmp1tmpid].type;
+        }
+
+
+
         tmp2 = expression();
+
+        if(medstack[tmp2].tbindex!=-1)
+        {
+                tmp2tabid = medstack[tmp2].tbindex;
+                tmp2type = table[tmp2tabid].type;
+        }
+        else if(medstack[tmp2].tpindex!=-1)
+        {
+                tmp2tmpid = medstack[tmp2].tpindex;
+                tmp2type = tempv[tmp2tmpid].type;
+        }
+        if(tmp1type!=tmp2type)
+        {
+                error(61);
+        }
+
+
         genmedi(ASN,tmp2,0,idenid);
 
     }
@@ -2868,11 +3224,11 @@ void readsta()
             }
         }
 
-        tmp1 = ftableindex(id);
+        tmp1 = ftableindex(id,1);
         if(tmp1<0)
         {
             error(51);
-
+            tmp1 = 0;
         }
         else
         {
@@ -2909,10 +3265,11 @@ void readsta()
                     break;
                 }
 
-                tmp1 = ftableindex(id);
+                tmp1 = ftableindex(id,1);
                 if(tmp1<0)
                 {
                     error(51);
+                    tmp1 = 0;
 
                 }
                 else
@@ -3043,6 +3400,7 @@ void writesta()
 void returnsta()
 {
     int tmp1,tmpfuntableid;
+    int tmp1tabid,tmp1tmpid,tmp1type;
     if(symbol==RETURNSYM)
     {
 
@@ -3079,12 +3437,37 @@ void returnsta()
                 }
             }
 
+            if(medstack[tmp1].tbindex!=-1)
+            {
+                tmp1tabid = medstack[tmp1].tbindex;
+                tmp1type = table[tmp1tabid].type;
+            }
+            else if(medstack[tmp1].tpindex!=-1)
+            {
+                tmp1tmpid = medstack[tmp1].tpindex;
+                tmp1type = tempv[tmp1tmpid].type;
+            }
 
             //void but have return values
             tmpfuntableid = medstack[curcompifunid].tbindex;
             if(table[tmpfuntableid].type==3)
             {
                 error(58);
+            }
+
+            if(table[tmpfuntableid].type!=tmp1type)
+            {
+                error(63);
+                //强制转换
+                if(medstack[tmp1].tbindex!=-1)
+                {
+                    table[tmp1tabid].type = table[tmpfuntableid].type;
+                }
+                else if(medstack[tmp1].tpindex!=-1)
+                {
+                    tempv[tmp1tmpid].type = table[tmpfuntableid].type;
+                }
+
             }
 
 
@@ -3120,6 +3503,8 @@ void returnsta()
 int expression()
 {
     int tmp1,tmp2,tmp3,flag;
+    int tmp1tabid,tmp1tmpid,tmp1type;
+    int tmp2tabid,tmp2tmpid,tmp2type;
     if(symbol==PLUS||symbol==MINUS)
     {
         if(symbol==PLUS)
@@ -3160,16 +3545,48 @@ int expression()
 
             tmp1 = term();
 
-            if(flag==2)
+            if(medstack[tmp1].tbindex!=-1)
             {
-                mallocint();
+                tmp1tabid = medstack[tmp1].tbindex;
+                tmp1type = table[tmp1tabid].type;
+            }
+            else if(medstack[tmp1].tpindex!=-1)
+            {
+                tmp1tmpid = medstack[tmp1].tpindex;
+                tmp1type = tempv[tmp1tmpid].type;
+            }
+
+            if(medstack[tmp2].tbindex!=-1)
+            {
+                tmp2tabid = medstack[tmp2].tbindex;
+                tmp2type = table[tmp2tabid].type;
+            }
+            else if(medstack[tmp2].tpindex!=-1)
+            {
+                tmp2tmpid = medstack[tmp2].tpindex;
+                tmp2type = tempv[tmp2tmpid].type;
+            }
+
+            if(tmp1type==tmp2type&&tmp1type==2)//都是char
+            {
+                mallocchar();
                 tmp3 = medsindex-1;
-                genmedi(SUB,tmp2,tmp1,tmp3);
             }
             else
             {
                 mallocint();
                 tmp3 = medsindex-1;
+            }
+
+
+            if(flag==2)
+            {
+
+                genmedi(SUB,tmp2,tmp1,tmp3);
+            }
+            else
+            {
+
                 genmedi(ADD,tmp2,tmp1,tmp3);
             }
 
@@ -3186,6 +3603,8 @@ int expression()
 int term()
 {
     int tmp1,tmp2,tmp3,flag;
+    int tmp1tabid,tmp1tmpid,tmp1type;
+    int tmp2tabid,tmp2tmpid,tmp2type;
     tmp1 = factor();
     if(symbol==TIMES||symbol==DIVI)
     {
@@ -3202,8 +3621,42 @@ int term()
                 return 0;
 
             tmp2 = factor();
-            mallocint();
-            tmp3 = medsindex-1;
+
+            if(medstack[tmp1].tbindex!=-1)
+            {
+                tmp1tabid = medstack[tmp1].tbindex;
+                tmp1type = table[tmp1tabid].type;
+            }
+            else if(medstack[tmp1].tpindex!=-1)
+            {
+                tmp1tmpid = medstack[tmp1].tpindex;
+                tmp1type = tempv[tmp1tmpid].type;
+            }
+
+            if(medstack[tmp2].tbindex!=-1)
+            {
+                tmp2tabid = medstack[tmp2].tbindex;
+                tmp2type = table[tmp2tabid].type;
+            }
+            else if(medstack[tmp2].tpindex!=-1)
+            {
+                tmp2tmpid = medstack[tmp2].tpindex;
+                tmp2type = tempv[tmp2tmpid].type;
+            }
+
+
+            if(tmp1type==tmp2type&&tmp1type==2)//都是char
+            {
+                mallocchar();
+                tmp3 = medsindex-1;
+            }
+            else
+            {
+                mallocint();
+                tmp3 = medsindex-1;
+            }
+
+
 
             if(flag==1)
             {
@@ -3226,11 +3679,13 @@ int term()
 int factor()
 {
     int tmp1,tmp2,tmp3;
+    int tmp1type;
+    int tmp2tabid,tmp2tmpid,tmp2type;
 
     if(symbol==IDEN)
     {
 
-        tmp1 = ftableindex(id);
+
 
          getsym();
          if(isFileEnd==TRUE)
@@ -3238,10 +3693,13 @@ int factor()
 
          if(symbol==LPAREN)
          {
+
+             tmp1 = ftableindex(id,3);
              if(tmp1<0)
             {
                 error(51);
-
+                tmp1 = 0;
+                tmp1type = table[tmp1].type;
             }
             else
             {
@@ -3255,16 +3713,18 @@ int factor()
                     error(57);
                 }
 
-
+                tmp1type = table[tmp1].type;
                 tmp1 = table[tmp1].index;
 
             }
 
 
-
-
             callsta(tmp1);
-            mallocint();
+            if(tmp1type==1)
+                mallocint();
+            else if(tmp1type==2)
+                mallocchar();
+
             genmedi(ASN,1,0,medsindex-1);
 
             return (medsindex-1);
@@ -3272,20 +3732,22 @@ int factor()
 
          else if(symbol==LBKET)
          {
+             tmp1 = ftableindex(id,2);
 
              if(tmp1<0)
             {
                 error(51);
-
+                tmp1 = 0;
+                tmp1type = table[tmp1].type;
             }
             else
             {
-                if(table[tmp1].obj!=2)
+                if(table[tmp1].obj!=7)
                 {
                     error(55);
                 }
 
-
+                tmp1type = table[tmp1].type;
                 tmp1 = table[tmp1].index;
 
             }
@@ -3294,8 +3756,29 @@ int factor()
              if(isFileEnd==TRUE)
                 return 0;
              tmp2 = expression();
+             if(medstack[tmp2].tbindex!=-1)
+             {
+                 tmp2tabid = medstack[tmp2].tbindex;
+                 tmp2type = table[tmp2tabid].type;
+             }
+             else if(medstack[tmp2].tpindex!=-1)
+             {
+                 tmp2tmpid = medstack[tmp2].tpindex;
+                 tmp2type = tempv[tmp2tmpid].type;
+             }
 
-             mallocint();
+             if(tmp2type==2)
+                error(62);
+
+             if(tmp1type==1)
+             {
+                 mallocint();
+             }
+             else if(tmp1type==2)
+             {
+                 mallocchar();
+             }
+
              tmp3 = medsindex-1;
 
              genmedi(LW,tmp1,tmp2,tmp3);
@@ -3317,6 +3800,7 @@ int factor()
 
          else
          {
+             tmp1 = ftableindex(id,1);
             if(tmp1<0)
             {
                 error(51);
@@ -3586,24 +4070,13 @@ void vartopro()
 {
     if(symbol==COMMA)
     {
-        if(table[tableindex].obj==0)
-        {
-            table[tableindex].obj = 2;
-            if(tmpstack[stackindex]==INTSYM)
-                table[tableindex].type = 1;
-            else if(tmpstack[stackindex]==CHARSYM)
-                table[tableindex].type = 2;
 
-            malloctb(tableindex);
-            genmedi(GLOBEG,medsindex-1,0,0);
-
-            //table[tableindex].offset = offset++;
-            table[tableindex].scope = curscope;
-
-
-        }
+        malloctb(tableindex);
+        genmedi(GLOBEG,medsindex-1,0,0);
 
         tableindex++;
+
+
 
         getsym();
 		if(isFileEnd==TRUE)
@@ -3613,7 +4086,18 @@ void vartopro()
 			if(findtable(id,2)>=0)
 				error(49);
             strcpy(table[tableindex].name,id);
+            table[tableindex].obj = 2;
+
+            if(tmpstack[stackindex]==INTSYM)
+                table[tableindex].type = 1;
+            else if(tmpstack[stackindex]==CHARSYM)
+                table[tableindex].type = 2;
+
             table[tableindex].offset = offset++;
+            table[tableindex].scope = curscope;
+            table[tableindex].length = 0;
+            table[tableindex].distru = -1;
+            table[tableindex].num = 0;
 
             getsym();
 			if(isFileEnd==TRUE)
@@ -3629,17 +4113,9 @@ void vartopro()
 
     if(symbol==LBKET)
     {
-        table[tableindex].obj = 2;
-        if(tmpstack[stackindex]==INTSYM)
-            table[tableindex].type = 3;
-        else if(tmpstack[stackindex]==CHARSYM)
-            table[tableindex].type = 4;
-
-
+        table[tableindex].obj = 7;
 
         offset--;
-
-        table[tableindex].scope = curscope;
 
 
 
@@ -3670,8 +4146,7 @@ void vartopro()
 
         }
 
-        malloctb(tableindex);
-        genmedi(GLOBEG,medsindex-1,0,0);
+
 
         table[tableindex].length = num;
         offset += num;
@@ -3693,6 +4168,9 @@ void vartopro()
 
         if(symbol==COMMA)
         {
+            malloctb(tableindex);
+            genmedi(GLOBEG,medsindex-1,0,0);
+
             tableindex++;
 
             getsym();
@@ -3703,10 +4181,22 @@ void vartopro()
 				if(findtable(id,2)>=0)
 					error(49);
                 strcpy(table[tableindex].name,id);
-                table[tableindex].offset = offset++;
+
+
                 //flag
-                table[tableindex].obj = 0;
-                table[tableindex].type = 0;
+                table[tableindex].obj = 2;
+                if(tmpstack[stackindex]==INTSYM)
+                        table[tableindex].type = 1;
+                else if(tmpstack[stackindex]==CHARSYM)
+                        table[tableindex].type = 2;
+
+                table[tableindex].offset = offset++;
+
+                table[tableindex].scope = curscope;
+
+                table[tableindex].length = 0;
+                table[tableindex].distru = -1;
+                table[tableindex].num = 0;
 
                 getsym();
                 if(isFileEnd==TRUE)
@@ -3724,29 +4214,14 @@ void vartopro()
 
     if(symbol==SEMICOLON)
     {
-        //[];
-        if(table[tableindex].obj!=0&&table[tableindex].type!=0)
-        {
-            tableindex++;
-        }
-        //标;
-        else
-        {
-            table[tableindex].obj = 2;
-            if(tmpstack[stackindex]==INTSYM)
-                table[tableindex].type = 1;
-            else if(tmpstack[stackindex]==CHARSYM)
-                table[tableindex].type = 2;
 
-            malloctb(tableindex);
-            genmedi(GLOBEG,medsindex-1,0,0);
+        malloctb(tableindex);
+        genmedi(GLOBEG,medsindex-1,0,0);
 
             //table[tableindex].offset = offset++;
-            table[tableindex].scope = curscope;
 
+        tableindex++;
 
-            tableindex++;
-        }
 
         stackindex--;
 
@@ -3757,6 +4232,18 @@ void vartopro()
         if(symbol==INTSYM||symbol==CHARSYM)
         {
             tmpstack[++stackindex] = symbol;
+            if(symbol==INTSYM)
+                table[tableindex].type = 1;
+            else if(symbol==CHARSYM)
+                table[tableindex].type = 2;
+
+            table[tableindex].obj = 2;
+            table[tableindex].offset = offset++;
+            table[tableindex].scope = curscope;
+
+            table[tableindex].length = 0;
+            table[tableindex].distru = -1;
+            table[tableindex].num = 0;
 
             getsym();
 			if(isFileEnd==TRUE)
@@ -3774,11 +4261,11 @@ void vartopro()
             }
 
             strcpy(table[tableindex].name,id);
-            table[tableindex].offset = offset++;
+
 
             //flag
-            table[tableindex].obj = 0;
-            table[tableindex].type = 0;
+
+
 
 			getsym();
 			if(isFileEnd==TRUE)
@@ -3792,12 +4279,7 @@ void vartopro()
 
             if(symbol==LPAREN)
             {
-                ///////////////////////////////////
-                if(isjmain==FALSE)
-                {
-                    genmedi(GOTO,0,0,2);
-                    isjmain = TRUE;
-                }
+
                 tmpoffset = 0;
                 curscope++;
                 if(findtable(table[tableindex].name,3)>=0)
@@ -3812,7 +4294,7 @@ void vartopro()
 
 void parameter()
 {
-    int paraid;
+    //int paraid;
     if(symbol==INTSYM||symbol==CHARSYM)
     {
         table[tableindex].obj = 4;
@@ -3852,11 +4334,11 @@ void parameter()
         table[tableindex].offset = tmpoffset++;
 
         malloctb(tableindex);
-        paraid = medsindex-1;
+        //paraid = medsindex-1;
 
-        calmyparasum++;
+        table[tableindex].paraid = calmyparasum++;
 
-        genmedi(PARA,paraid,0,0);
+        //genmedi(PARA,paraid,0,0);
 
 
         tableindex++;
@@ -3893,6 +4375,7 @@ void fictopro()
 		}
     }
 
+
     malloctb(tableindex);
     funid = medsindex-1;
     curcompifunid = funid;
@@ -3909,6 +4392,8 @@ void fictopro()
 
     tableid = tableindex;
 
+    table[tableindex].beginid = medsindex-1;
+
 
     calmyparasum=0;
 
@@ -3917,7 +4402,7 @@ void fictopro()
 
 
     tmpbegin = tempvindex;
-	table[tableindex].tmpbasic = tmpbegin;
+	//table[tableindex].tmpbasic = tmpbegin;
 	tableindex++;
 
 
@@ -4020,6 +4505,7 @@ void fictopro()
     tmpend = tempvindex;
     table[tableid].length = tmpoffset+tmpend-tmpbegin;
 
+    table[tableid].endid = medsindex-1;
 
 
    // printf("This is valued function's declaration for program.\n");
@@ -4076,11 +4562,7 @@ void fictopro()
             return;
         if(symbol==IDEN)
         {
-            if(isjmain==FALSE)
-            {
-                genmedi(GOTO,0,0,2);
-                isjmain = TRUE;
-            }
+
             curscope++;
             fvotopro();
         }
@@ -4122,9 +4604,11 @@ void fvotopro()
     table[tableindex].type = 3;
     table[tableindex].scope = curscope;
 
+    table[tableindex].beginid = medsindex-1;
+
     tableid = tableindex;
     tmpbegin = tempvindex;
-    table[tableindex].tmpbasic = tmpbegin;
+   // table[tableindex].tmpbasic = tmpbegin;
 
     calmyparasum=0;
 
@@ -4243,6 +4727,7 @@ void fvotopro()
     table[tableid].offset = tmpoffset;
     tmpend = tempvindex;
     table[tableid].length = tmpoffset+tmpend-tmpbegin;
+    table[tableid].endid = medsindex-1;
 
     //printf("This is void function's declaration for program.\n");
     getsym();
@@ -4291,11 +4776,6 @@ void fvotopro()
             return;
         curscope++;
 
-        if(isjmain==FALSE)
-        {
-                genmedi(GOTO,0,0,2);
-                isjmain = TRUE;
-        }
 
         fictopro();
     }
@@ -4306,12 +4786,6 @@ void fvotopro()
             return;
         if(symbol==IDEN)
         {
-
-            if(isjmain==FALSE)
-            {
-                genmedi(GOTO,0,0,2);
-                isjmain = TRUE;
-            }
 
             curscope++;
             fvotopro();
@@ -4359,9 +4833,12 @@ void ismain()
     table[tableindex].type = 3;
     table[tableindex].scope = curscope;
 
+    table[tableindex].beginid = medsindex-1;
+
     tableid = tableindex;
     tmpbegin = tempvindex;
-    table[tableindex].tmpbasic = tmpbegin;
+    //table[tableindex].tmpbasic = tmpbegin;
+
 
     tableindex++;
 
@@ -4439,6 +4916,7 @@ void ismain()
       table[tableid].offset = tmpoffset;
       tmpend = tempvindex;
       table[tableid].length = tmpoffset+tmpend-tmpbegin;
+      table[tableid].endid = medsindex-1;
       //table[tableid].length = medsindex - funid;
 
      // printf("This is main function.\n");
@@ -4458,13 +4936,13 @@ void program()
         error(14);
         return;
     }
-
+/*
     labels[labelindex].name[0] = '$';
     labels[labelindex].name[1]='e';
     labels[labelindex].name[2]='n';
     labels[labelindex].name[3]='d';
     labels[labelindex].name[4]='\0';
-
+*/
 
     table[tableindex].name[0] = '\0';
     table[tableindex].obj = 1;
@@ -4505,6 +4983,19 @@ void program()
 
         tmpstack[stackindex] = symbol;
 
+        if(symbol==INTSYM)
+            table[tableindex].type = 1;
+        else if(symbol==CHARSYM)
+            table[tableindex].type = 2;
+
+        table[tableindex].obj = 2;
+
+        table[tableindex].offset = offset++;
+        table[tableindex].scope = curscope;
+
+        table[tableindex].length = 0;
+        table[tableindex].distru = -1;
+        table[tableindex].num = 0;
 
         getsym();
 		if(isFileEnd==TRUE)
@@ -4527,15 +5018,9 @@ void program()
 
         }
 
-		if(findtable(id,2)>=0)
-				error(49);
 
         strcpy(table[tableindex].name,id);
-        table[tableindex].offset = offset++;
 
-        //flag
-        table[tableindex].obj = 0;
-        table[tableindex].type = 0;
 
 
         getsym();
@@ -4553,11 +5038,7 @@ void program()
 
         if(symbol==LPAREN)
         {
-            if(isjmain==FALSE)
-            {
-                genmedi(GOTO,0,0,2);
-                isjmain = TRUE;
-            }
+
 
             tmpoffset = 0;
             curscope++;
@@ -4578,13 +5059,10 @@ void program()
         }
         if(symbol==IDEN)
         {
-            if(isjmain==FALSE)
-            {
-                genmedi(GOTO,0,0,2);
-                isjmain = TRUE;
-            }
+
             tmpoffset = 0;
             curscope++;
+
             fvotopro();
         }
 
@@ -4602,6 +5080,562 @@ void program()
 
 
 }
+
+
+void genblocks()
+{
+    int i;//j,k;
+    int funid,funtabid,curfunscope;
+    for(i=0;i<medialindex;i++)
+    {
+        if(medial[i].op==BEGIN)
+        {
+            funid = medial[i].rs;
+            funtabid = medstack[funid].tbindex;
+            curfunscope = table[funtabid].scope;
+
+            blocks[blocksindex].beginid = i;
+            blocks[blocksindex].scope = curfunscope;
+            while(i<medialindex&&medial[i].op!=END)
+            {
+                if(medial[i].op==LAB)
+                {
+                    blocks[blocksindex].endid = i-1;
+                    blocksindex++;
+                    blocks[blocksindex].beginid = i;
+                    blocks[blocksindex].scope = curfunscope;
+
+                }
+                else if(medial[i].op==BEQ||medial[i].op==GOTO
+                        ||medial[i].op==CALL)
+                {
+                    blocks[blocksindex].endid = i;
+                    blocksindex++;
+                    blocks[blocksindex].beginid = i+1;
+                    blocks[blocksindex].scope = curfunscope;
+
+                }
+                i++;
+            }
+            blocks[blocksindex].endid = i;
+        }
+    }
+
+
+
+}
+
+
+int finddagtable(int index)
+{
+    int i,j;
+    for(i=0;i<dagtabindex;i++)
+    {
+        if(dagtable[i].medsid==index)
+            break;
+    }
+
+    //未找到，则新建一个节点
+    if(i==dagtabindex)
+    {
+        //建立节点
+        dagnodes[dagnodindex].id = dagnodindex;
+        dagnodes[dagnodindex].op = -1;
+        dagnodes[dagnodindex].left = -1;
+        dagnodes[dagnodindex].right = -1;
+
+
+        //填节点表
+        dagtable[dagtabindex].medsid = index;
+        dagtable[dagtabindex].nodeid = dagnodindex;
+
+        j = dagnodindex;
+
+        dagnodindex++;
+        dagtabindex++;
+
+        return j;
+
+    }
+
+    return dagtable[i].nodeid;
+}
+
+
+//add,mul,equ,nequ
+void finddagnode1(int op,int left,int right,int result,int medindex)
+{
+    int i,j;
+
+
+    for(i=0;i<dagnodindex;i++)
+    {
+        if(dagnodes[i].op==op&&((dagnodes[i].left==left&&dagnodes[i].right==right)
+               ||(dagnodes[i].left==right&&dagnodes[i].right==left)))
+        {
+                for(j=0;j<dagtabindex;j++)
+                {
+                    if(dagtable[j].medsid==result)
+                    {
+                        dagtable[j].nodeid = dagnodes[i].id;
+                        medial[medindex].dagnodeid = dagnodes[i].id;
+                        break;
+                    }
+
+                }
+                if(j==dagtabindex)
+                {
+                    dagtable[dagtabindex].medsid = result;
+                    dagtable[dagtabindex].nodeid = dagnodes[i].id;
+                    medial[medindex].dagnodeid = dagnodes[i].id;
+                    dagtabindex++;
+
+                }
+                break;
+
+
+
+        }
+    }
+    if(i==dagnodindex)
+    {
+        dagnodes[dagnodindex].id = dagnodindex;
+        dagnodes[dagnodindex].left = left;
+        dagnodes[dagnodindex].right = right;
+        dagnodes[dagnodindex].op = op;
+
+        for(j = 0;j<dagtabindex;j++)
+        {
+            if(dagtable[j].medsid==result)
+            {
+                dagtable[j].nodeid = dagnodindex;
+                medial[medindex].dagnodeid = dagnodindex;
+                break;
+            }
+        }
+        if(j==dagtabindex)
+        {
+            dagtable[dagtabindex].medsid = result;
+            dagtable[dagtabindex].nodeid = dagnodindex;
+            medial[medindex].dagnodeid = dagnodindex;
+            dagtabindex++;
+        }
+
+        dagnodindex++;
+    }
+
+}
+
+//sub,div,big,sma,bequ,sequ
+void finddagnode2(int op,int left,int right,int result,int medindex)
+{
+    int i,j;
+
+
+    for(i=0;i<dagnodindex;i++)
+    {
+        if(dagnodes[i].op==op&&dagnodes[i].left==left&&dagnodes[i].right==right)
+        {
+                for(j=0;j<dagtabindex;j++)
+                {
+                    if(dagtable[j].medsid==result)
+                    {
+                        dagtable[j].nodeid = dagnodes[i].id;
+                        medial[medindex].dagnodeid = dagnodes[i].id;
+                        break;
+                    }
+
+                }
+                if(j==dagtabindex)
+                {
+                    dagtable[dagtabindex].medsid = result;
+                    dagtable[dagtabindex].nodeid = dagnodes[i].id;
+                    medial[medindex].dagnodeid = dagnodes[i].id;
+                    dagtabindex++;
+
+                }
+                break;
+
+
+
+        }
+    }
+    if(i==dagnodindex)
+    {
+        dagnodes[dagnodindex].id = dagnodindex;
+        dagnodes[dagnodindex].left = left;
+        dagnodes[dagnodindex].right = right;
+        dagnodes[dagnodindex].op = op;
+
+        for(j = 0;j<dagtabindex;j++)
+        {
+            if(dagtable[j].medsid==result)
+            {
+                dagtable[j].nodeid = dagnodindex;
+                medial[medindex].dagnodeid = dagnodindex;
+                break;
+            }
+        }
+        if(j==dagtabindex)
+        {
+            dagtable[dagtabindex].medsid = result;
+            dagtable[dagtabindex].nodeid = dagnodindex;
+            medial[medindex].dagnodeid = dagnodindex;
+            dagtabindex++;
+        }
+
+        dagnodindex++;
+    }
+
+}
+
+
+//not,assign
+void finddagnode3(int op,int left,int result,int medindex)
+{
+    int i,j;
+
+
+    for(i=0;i<dagnodindex;i++)
+    {
+        if(dagnodes[i].op==op&&dagnodes[i].left==left)
+        {
+                for(j=0;j<dagtabindex;j++)
+                {
+                    if(dagtable[j].medsid==result)
+                    {
+                        dagtable[j].nodeid = dagnodes[i].id;
+                        medial[medindex].dagnodeid = dagnodes[i].id;
+                        break;
+                    }
+
+                }
+                if(j==dagtabindex)
+                {
+                    dagtable[dagtabindex].medsid = result;
+                    dagtable[dagtabindex].nodeid = dagnodes[i].id;
+                    medial[medindex].dagnodeid = dagnodes[i].id;
+                    dagtabindex++;
+
+                }
+                break;
+
+
+
+        }
+    }
+    if(i==dagnodindex)
+    {
+        dagnodes[dagnodindex].id = dagnodindex;
+        dagnodes[dagnodindex].left = left;
+        dagnodes[dagnodindex].right = -1;
+        dagnodes[dagnodindex].op = op;
+
+        for(j = 0;j<dagtabindex;j++)
+        {
+            if(dagtable[j].medsid==result)
+            {
+                dagtable[j].nodeid = dagnodindex;
+                medial[medindex].dagnodeid = dagnodindex;
+                break;
+            }
+        }
+        if(j==dagtabindex)
+        {
+            dagtable[dagtabindex].medsid = result;
+            dagtable[dagtabindex].nodeid = dagnodindex;
+            medial[medindex].dagnodeid = dagnodindex;
+            dagtabindex++;
+        }
+
+        dagnodindex++;
+    }
+
+}
+
+
+
+
+
+
+void dag()
+{
+    int i,j,k,t,blobegin,bloend;
+    int leftnodid;
+    int rightnodid;
+    int rs,rt,rd;
+    int fir,sec,temp;
+    int firtmp,sectmp;
+    for(i=0;i<=blocksindex;i++)
+    {
+        //initial
+        dagnodindex = 0;
+        dagtabindex = 0;
+
+
+        blobegin = blocks[i].beginid;
+        bloend = blocks[i].endid;
+
+        //构建dag图
+        for(j=blobegin;j<bloend;j++)
+        {
+            if(medial[j].op==ADD||medial[j].op==MUL
+               ||medial[j].op==EQU||medial[j].op==NEQU)
+               {
+                   rs = medial[j].rs;
+                   rt = medial[j].rt;
+                   rd = medial[j].rd;
+                   leftnodid = finddagtable(rs);
+                   rightnodid = finddagtable(rt);
+                   finddagnode1(medial[j].op,leftnodid,rightnodid,rd,j);
+
+               }
+            else if(medial[j].op==SUB||medial[j].op==DIV
+               ||medial[j].op==BIG||medial[j].op==SMA
+               ||medial[j].op==BEQU||medial[j].op==SEQU)
+               {
+                   rs = medial[j].rs;
+                   rt = medial[j].rt;
+                   rd = medial[j].rd;
+                   leftnodid = finddagtable(rs);
+                   rightnodid = finddagtable(rt);
+                   finddagnode2(medial[j].op,leftnodid,rightnodid,rd,j);
+               }
+            else if(medial[j].op==NOT)
+            {
+                rs = medial[j].rs;
+                rd = medial[j].rd;
+                leftnodid = finddagtable(rs);
+                finddagnode3(medial[j].op,leftnodid,rd,j);
+            }
+            else if(medial[j].op==ASN)
+            {
+                rs = medial[j].rs;
+                rd = medial[j].rd;
+                leftnodid = finddagtable(rs);
+                finddagnode3(medial[j].op,leftnodid,rd,j);
+            }
+
+        }
+
+        //消除公共子表达式
+        for(k=0;k<dagnodindex;k++)
+        {
+            for(t=blobegin;t<bloend&&!(medial[t].dagnodeid==k&&medstack[medial[t].rd].tpindex!=-1);t++);
+
+            if(t!=bloend)
+            {
+                fir = t;
+                firtmp = medial[fir].rd;
+                while(t<bloend)
+                {
+                    for(t=t+1;t<bloend&&!(medial[t].dagnodeid==k&&medstack[medial[t].rd].tpindex!=-1);t++);
+                    if(t!=bloend)
+                    {
+                        sec = t;
+                        sectmp = medial[sec].rd;
+
+                        medial[t].op = DEL;
+                        medial[t].dagnodeid = -1;
+                        medial[t].rs = 0;
+                        medial[t].rt = 0;
+                        medial[t].rd = 0;
+                        for(temp = t+1;temp<bloend;temp++)
+                        {
+                            if(medial[temp].op==ADD||medial[temp].op==SUB||medial[temp].op==MUL
+                               ||medial[temp].op==DIV||medial[temp].op==BIG||medial[temp].op==SMA
+                               ||medial[temp].op==EQU||medial[temp].op==BEQU||medial[temp].op==SEQU
+                               ||medial[temp].op==NEQU)
+                            {
+                                if(medial[temp].rs==sectmp)
+                                    medial[temp].rs = firtmp;
+                                if(medial[temp].rt==sectmp)
+                                    medial[temp].rt = firtmp;
+                            }
+
+                            else if(medial[temp].op==NOT||medial[temp].op==ASN||medial[temp].op==FORM
+                                    ||medial[temp].op==RETURN||medial[temp].op==ADDI||medial[temp].op==SUBI)
+                            {
+                                if(medial[temp].rs==sectmp)
+                                    medial[temp].rs = firtmp;
+                            }
+                        }
+                    }
+                }
+
+            }
+
+        }
+
+
+
+    }
+}
+
+
+//分配的时候地址已经是4的倍数，已经留出了参数的位置
+void alloc()
+{
+    int i,j,k,t;
+    int rs,rt;//rd;
+    int weight=1;//权值
+    int beginid,endid,funtabid;//scope;
+    int temp1,parasum;
+    int addr;
+    int medid,tabid,tmpid;
+
+    for(i=0;i<medialindex;i++)
+    {
+        if(medial[i].op==BEGIN)
+        {
+            rs = medial[i].rs;
+            funtabid = medstack[rs].tbindex;
+            beginid = table[funtabid].beginid;
+            endid = table[funtabid].endid;
+            //scope = table[funtabid].scope;
+
+            parasum = table[funtabid].myparasum;
+            addr = parasum*4;
+
+            i++;
+            //引用计数
+            while(i<medialindex&&medial[i].op!=END)
+            {
+                if(medial[i].op==ADD||medial[i].op==SUB
+                   ||medial[i].op==MUL||medial[i].op==DIV
+                   ||medial[i].op==BIG||medial[i].op==SMA
+                   ||medial[i].op==EQU||medial[i].op==BEQU
+                   ||medial[i].op==SEQU||medial[i].op==NEQU
+                   ||medial[i].op==SW||medial[i].op==LW)
+                {
+                    rs = medial[i].rs;
+                    rt = medial[i].rt;
+                    medstack[rs].num+=weight;
+                    medstack[rt].num+=weight;
+                }
+
+                else if(medial[i].op==NOT||medial[i].op==ASN
+                   ||medial[i].op==FORM||medial[i].op==RETURN
+                   ||medial[i].op==ADDI||medial[i].op==SUBI
+                   ||medial[i].op==BEQ||medial[i].op==RD||medial[i].op==WRT)
+                {
+                    rs = medial[i].rs;
+                    medstack[rs].num+=weight;
+                }
+                else if(medial[i].op==LOOPBEGIN)
+                    weight*=10;
+                else if(medial[i].op==LOOPEND)
+                    weight/=10;
+
+                i++;
+            }
+
+            //复制
+            for(k = 0,j=beginid;j<=endid;j++,k++)
+            {
+                statis[k].id = medstack[j].id;
+                statis[k].num = medstack[j].num;
+            }
+
+            //排序
+            for(j=0;j<=k;j++)
+            {
+                for(t=j+1;t<k;t++)
+                {
+                    if(statis[t].num>statis[j].num)
+                    {
+                        temp1 = statis[t].id;
+                        statis[t].id = statis[j].id;
+                        statis[j].id = temp1;
+                        temp1 = statis[t].num;
+                        statis[t].num = statis[j].num;
+                        statis[j].num = temp1;
+                    }
+                }
+            }
+
+
+            //alloc reg and memory
+            for(j=0,t=0;j<=k;j++)
+            {
+                medid = statis[j].id;
+                if(t<REGGSUM)
+                {
+                    if(medstack[medid].tbindex!=-1)
+                    {
+                        //全局变量和数组不用考虑
+                        tabid = medstack[medid].tbindex;
+                        //参数
+                        if(table[tabid].obj==4)
+                        {
+                            table[tabid].offset = -1;
+                            table[tabid].distru = t+REGGBASIC;
+                            t++;
+
+                        }
+                        //局部变量
+                        else if(table[tabid].obj==2&&table[tabid].scope!=0)
+                        {
+                            table[tabid].offset = -1;
+                            table[tabid].distru = t+REGGBASIC;
+                            t++;
+                        }
+                        //局部数组
+                        else if(table[tabid].obj==7&&table[tabid].scope!=0)
+                        {
+                            table[tabid].offset = addr;
+                            addr = addr+(table[tabid].length*4);
+                        }
+                    }
+
+                    else if(medstack[medid].tpindex!=-1)
+                    {
+                        tmpid = medstack[medid].tpindex;
+                        tempv[tmpid].regid = t+REGGBASIC;
+                        tempv[tmpid].addr = -1;
+                        t++;
+                    }
+                }
+
+                //全局寄存器已经分配完毕
+                else
+                {
+                    if(medstack[medid].tbindex!=-1)
+                    {
+                        //全局变量和数组和参数不用考虑
+                        tabid = medstack[medid].tbindex;
+
+                        //局部变量
+                        if(table[tabid].obj==2&&table[tabid].scope!=0)
+                        {
+                            table[tabid].offset = addr;
+                            addr += 4;
+                        }
+                        //局部数组
+                        else if(table[tabid].obj==7&&table[tabid].scope!=0)
+                        {
+                            table[tabid].offset = addr;
+                            addr = addr+(table[tabid].length*4);
+                        }
+                    }
+
+                    else if(medstack[medid].tpindex!=-1)
+                    {
+                        tmpid = medstack[medid].tpindex;
+                        tempv[tmpid].regid = -1;
+                        tempv[tmpid].addr = addr;
+                        addr += 4;
+                    }
+                }
+
+
+            }
+
+
+        }
+    }
+}
+
 
 
 int openoutput()
@@ -4625,262 +5659,16 @@ int openoutput()
 
 
 
-void initreg()
-{
-    int i;
-    for(i=0;i<21;i++)
-    {
-        registers[i].distribute=FALSE;
-    }
 
-}
-
-
-//分配寄存器
-int allocreg(int index,int funid)
-{
-    int i,tablefuncid,basic,addr,prev;
-    int pretableid,curtableid,tmp,pretmpindex,curtmpindex;
-    for(i=0;i<21;i++)
-        if(registers[i].distribute==FALSE)
-            break;
-
-    if(i==21)
-    {
-
-        if(medstack[index].tbindex!=-1)
-        {
-            tmp = medstack[index].tbindex;
-            if(table[tmp].obj==6)
-                return 2;
-        }
-
-
-        regid++;
-        regid %= 21;
-        if(registers[regid].index==-1)
-        {
-            i = regid;
-        }
-        else
-        {
-             prev = registers[regid].index;
-
-
-            //8号寄存器原来存的是局部变量或是全局变量
-            if(medstack[prev].tbindex!=-1)
-            {
-                pretableid = medstack[prev].tbindex;
-                //参数或是变量需要写回内存
-                if(table[pretableid].obj==4)
-                {
-                    addr = table[pretableid].offset;
-                    addr *= 4;
-                    addr = -addr;
-                    printf("sw $%d %d($fp)\n",(regid+5),addr);
-
-                }
-                else if(table[pretableid].obj==2)
-                {
-                    //局部变量
-                    if(table[pretableid].scope!=0)
-                    {
-                        addr = table[pretableid].offset;
-                        addr *= 4;
-                        addr = -addr;
-                        printf("sw $%d %d($fp)\n",(regid+5),addr);
-
-                    }
-                    //全局变量
-                    else
-                    {
-
-                        printf("sw $%d %s($0)\n",(regid+5),table[pretableid].name);
-
-                    }
-                }
-            }
-            //8号寄存器原来存的是临时变量
-            else if(medstack[prev].tpindex!=-1)
-            {
-                tablefuncid = medstack[funid].tbindex;
-                basic = table[tablefuncid].tmpbasic;
-                pretmpindex = medstack[prev].tpindex;
-                addr = pretmpindex-basic+table[tablefuncid].offset;
-                addr *= 4;
-                addr = -addr;
-                printf("sw $%d %d($fp)\n",(regid+5),addr);
-
-            }
-
-            i = regid;
-        }
-
-
-    }
-
-
-
-
-        //是符号表中的东西
-        if(medstack[index].tbindex!=-1)
-        {
-            curtableid = medstack[index].tbindex;
-
-            if(table[curtableid].obj==4)
-            {
-                addr = table[curtableid].offset;
-                addr *= 4;
-                addr = -addr;
-                printf("lw $%d %d($fp)\n",(i+5),addr);
-
-            }
-            else if(table[curtableid].obj==2)
-            {
-                //局部变量
-                if(table[curtableid].scope!=0)
-                {
-                    addr = table[curtableid].offset;
-                    addr *= 4;
-                    addr = -addr;
-                    printf("lw $%d %d($fp)\n",(i+5),addr);
-                }
-                //全局变量
-                else
-                {
-                    printf("lw $%d %s($0)\n",(i+5),table[curtableid].name);
-
-                }
-            }
-
-
-        }
-        //即将要分配的变量是临时变量
-        else if(medstack[index].tpindex!=-1)
-        {
-            tablefuncid = medstack[funid].tbindex;
-            basic = table[tablefuncid].tmpbasic;
-            curtmpindex = medstack[index].tpindex;
-            addr = curtmpindex-basic+table[tablefuncid].offset;
-            addr *= 4;
-            addr = -addr;
-            printf("lw $%d %d($fp)\n",(i+5),addr);
-        }
-
-        registers[i].distribute = TRUE;
-        registers[i].index = index;
-        return (i+5);
-
-
-
-
-
-}
-
-
-
-int allocregforint(int value,int funid)
-{
-    int i,tablefuncid,basic,addr,prev;
-    int pretableid,curtableid,pretmpindex;
-    for(i=0;i<21;i++)
-        if(registers[i].distribute==FALSE)
-            break;
-    if(i==21)
-    {
-        regid++;
-        regid %= 21;
-        prev = registers[regid].index;
-
-
-        //8号寄存器原来存的是局部变量或是全局变量
-        if(medstack[prev].tbindex!=-1)
-        {
-            pretableid = medstack[prev].tbindex;
-            //参数或是变量需要写回内存
-            if(table[pretableid].obj==4)
-            {
-                addr = table[pretableid].offset;
-                addr *= 4;
-                addr = -addr;
-                printf("sw $%d %d($fp)\n",(regid+5),addr);
-
-            }
-            else if(table[pretableid].obj==2)
-            {
-                //局部变量
-                if(table[pretableid].scope!=0)
-                {
-                    addr = table[pretableid].offset;
-                    addr *= 4;
-                    addr = -addr;
-                    printf("sw $%d %d($fp)\n",(regid+5),addr);
-
-                }
-                //全局变量
-                else
-                {
-
-                    printf("sw $%d %s($0)\n",(regid+5),table[pretableid].name);
-
-                }
-            }
-        }
-        //8号寄存器原来存的是临时变量
-        else if(medstack[prev].tpindex!=-1)
-        {
-            tablefuncid = medstack[funid].tbindex;
-            basic = table[tablefuncid].tmpbasic;
-            pretmpindex = medstack[prev].tpindex;
-            addr = pretmpindex-basic+table[tablefuncid].offset;
-            addr *= 4;
-            addr = -addr;
-            printf("sw $%d %d($fp)\n",(regid+5),addr);
-
-        }
-
-
-    i = regid;
-
-
-    }
-    registers[i].distribute = TRUE;
-    registers[i].index = -1;
-
-
-
-    printf("addi $%d $0 %d\n",(i+5),value);
-
-    return (i+5);
-
-}
-
-
-int isalloc(int index)
-{
-    int i;
-
-    for(i=0;i<21;i++)
-        if(registers[i].index==index)
-            return (i+5);
-
-    if(medstack[index].tbindex!=-1)
-    {
-        i = medstack[index].tbindex;
-        if(table[i].obj==6)
-            return 2;
-    }
-
-    return -1;
-}
 
 void printsw()
 {
-    int i = 5,j = 152,k=0;
-    printf("sw $ra 160($sp)\n");
-    printf("sw $fp 156($sp)\n");
+    int i = REGGBASIC,j = RESERVE*4,k=0;
+    printf("sw $ra %d($sp)\n",j);
+    j-=4;
+    printf("sw $fp %d($sp)\n",j);
 
-    for(k=0;k<21;k++,i++,j=j-4)
+    for(k=0,j=j-4;k<REGGSUM;k++,i++,j=j-4)
     {
         printf("sw $%d %d($sp)\n",i,j);
     }
@@ -4888,105 +5676,257 @@ void printsw()
 }
 
 
-void writebackmem(int funid)
-{
-    int i,tablefuncid,basic,addr,prev;
-    int pretableid,curtableid,pretmpindex;
-    for(i=0;i<21;i++)
-    {
-        if(registers[i].distribute==TRUE&&registers[i].index!=-1)
-        {
-
-            prev = registers[i].index;
-            //8号寄存器原来存的是临时变量
-            if(medstack[prev].tpindex!=-1)
-            {
-                tablefuncid = medstack[funid].id;
-                basic = table[tablefuncid].tmpbasic;
-                pretmpindex = medstack[prev].tpindex;
-                addr = pretmpindex-basic+table[tablefuncid].offset;
-                addr *= 4;
-                addr = -addr;
-                printf("sw $%d %d($fp)\n",(i+5),addr);
-
-            }
-            //8号寄存器原来存的是局部变量或是全局变量
-            else if(medstack[prev].tbindex!=-1)
-            {
-                pretableid = medstack[prev].tbindex;
-                //参数或是变量需要写回内存
-                if(table[pretableid].obj==4)
-                {
-                    addr = table[pretableid].offset;
-                    addr *= 4;
-                    addr = -addr;
-                    printf("sw $%d %d($fp)\n",(i+5),addr);
-
-                }
-                else if(table[pretableid].obj==2)
-                {
-                    //局部变量
-                    if(table[pretableid].scope!=0)
-                    {
-                        addr = table[pretableid].offset;
-                        addr *= 4;
-                        addr = -addr;
-                        printf("sw $%d %d($fp)\n",(i+5),addr);
-
-                    }
-                    //全局变量
-                    else
-                    {
-
-                        printf("sw $%d %s($0)\n",(i+5),table[pretableid].name);
-
-                    }
-                }
-            }
-
-
-
-        }
-
-
-    }
-
-
-}
-
 void printlw()
 {
-    int i = 5,j = 152,k=0;
-    printf("lw $ra 160($sp)\n");
-    printf("lw $fp 156($sp)\n");
+    int i = REGGBASIC,j = RESERVE*4,k=0;
+    printf("lw $ra %d($sp)\n",j);
+    j-=4;
+    printf("lw $fp %d($sp)\n",j);
 
-    for(k=0;k<21;k++,i++,j=j-4)
+    for(k=0,j=j-4;k<REGGSUM;k++,i++,j=j-4)
     {
         printf("lw $%d %d($sp)\n",i,j);
     }
+
+
 }
+
+void checkpara(int funtabid)
+{
+    int parasum,addr,parareg;
+    int i,j;
+    parasum = table[funtabid].myparasum;
+
+    for(i=0,j=funtabid;i<parasum&&j<tableindex;j++)
+    {
+        if(table[j].obj==4)
+        {
+            //参数已分配寄存器
+            if(table[j].offset==-1&&table[j].distru>0)
+            {
+                addr = table[j].paraid;
+                addr *= 4;
+                addr = -addr;
+                parareg = table[j].distru;
+                printf("lw $%d %d($fp)\n",parareg,addr);
+            }
+
+            i++;
+        }
+    }
+}
+
+//num:1-rs,2-rt,3-rd
+int calreg(int num,int medid)
+{
+    int tabid,tmpid,regid,addr;
+    if(medstack[medid].tbindex!=-1)
+    {
+        tabid = medstack[medid].tbindex;
+        //局部变量
+        if(table[tabid].obj==2&&table[tabid].scope!=0)
+        {
+            //已分配全局寄存器
+            if(table[tabid].offset==-1&&table[tabid].distru>0)
+            {
+                return table[tabid].distru;
+            }
+            else
+            {
+                if(num==1)
+                {
+                    regid = 8;
+                    addr = 0-table[tabid].offset;
+
+                    printf("lw $%d %d($fp)\n",regid,addr);
+
+                    return regid;
+                }
+
+                else if(num==2)
+                {
+                    regid = 9;
+                    addr = 0-table[tabid].offset;
+                    printf("lw $%d %d($fp)\n",regid,addr);
+
+                    return regid;
+                }
+
+                else if(num==3)
+                    return 10;
+
+            }
+        }
+        //全局变量
+        else if(table[tabid].obj==2&&table[tabid].scope==0)
+        {
+            if(num==1)
+            {
+                regid = 8;
+                printf("lw $%d %s($0)\n",regid,table[tabid].name);
+
+                return regid;
+            }
+
+            else if(num==2)
+            {
+                regid = 9;
+                printf("lw $%d %s($0)\n",regid,table[tabid].name);
+
+                return regid;
+            }
+            else if(num==3)
+                return 10;
+        }
+        //参数
+        else if(table[tabid].obj==4)
+        {
+            //已分配全局寄存器
+            if(table[tabid].offset==-1&&table[tabid].distru>0)
+            {
+                return table[tabid].distru;
+            }
+            else
+            {
+                if(num==1)
+                {
+                    regid = 8;
+                    addr = 0-table[tabid].paraid*4;
+
+                    printf("lw $%d %d($fp)\n",regid,addr);
+
+                    return regid;
+                }
+
+                else if(num==2)
+                {
+                    regid = 9;
+                    addr = 0-table[tabid].paraid*4;
+
+                    printf("lw $%d %d($fp)\n",regid,addr);
+
+                    return regid;
+                }
+
+                else if(num==3)
+                    return 10;
+            }
+        }
+
+        //函数返回值
+        else if(table[tabid].obj==6)
+        {
+            if(num==1||num==2)
+                return 2;
+        }
+
+    }
+    else if(medstack[medid].tpindex!=-1)
+    {
+        tmpid = medstack[medid].tpindex;
+        //分配到了全局寄存器
+        if(tempv[tmpid].regid>0)
+        {
+            return tempv[tmpid].regid;
+        }
+        else
+        {
+            if(num==1)
+            {
+                regid = 8;
+                addr = 0-tempv[tmpid].addr;
+                printf("lw $%d %d($fp)\n",regid,addr);
+
+                return regid;
+            }
+
+            else if(num==2)
+            {
+                regid = 9;
+                addr = 0-tempv[tmpid].addr;
+                printf("lw $%d %d($fp)\n",regid,addr);
+
+                return regid;
+            }
+            else if(num==3)
+                return 10;
+        }
+    }
+
+    return 0;
+
+}
+
+void swreg(int medid,int regid)
+{
+    int tabid,tmpid,addr;
+    if(medstack[medid].tbindex!=-1)
+    {
+        tabid = medstack[medid].tbindex;
+        //局部变量
+        if(table[tabid].obj==2&&table[tabid].scope!=0)
+        {
+
+            addr = 0-table[tabid].offset;
+            printf("sw $%d %d($fp)\n",regid,addr);
+
+        }
+        //全局变量
+        else if(table[tabid].obj==2&&table[tabid].scope==0)
+        {
+
+            printf("sw $%d %s($0)\n",regid,table[tabid].name);
+
+        }
+        //参数
+        else if(table[tabid].obj==4)
+        {
+            addr = 0-table[tabid].paraid*4;
+
+            printf("sw $%d %d($fp)\n",regid,addr);
+
+        }
+    }
+    else if(medstack[medid].tpindex!=-1)
+    {
+        tmpid = medstack[medid].tpindex;
+
+        addr = 0-tempv[tmpid].addr;
+        printf("sw $%d %d($fp)\n",regid,addr);
+
+
+    }
+
+
+}
+
 
 void genemips()
 {
     int i,rs,rt,rd;
-    //int rsmedid,rtmedid,rdmedid;
-    int rstabid,rttabid,rdtabid;
-    int rsreg,rtreg,rdreg,tmpreg;
-    int rsv,rtv,rdv;
-    int rsint,rtint,rdint;//是否为常量
+    int rstabid,rttabid;
+    int rstmpid;
+    int rsreg,rtreg,rdreg;
+    //int rsaddr,rtaddr,rdaddr;
+
+    int rsv,rtv;
+    int rsint,rtint;//是否为常量
+    //int rsdist,rtdist,rddist;//是否已分配全局寄存器
+
     //int fend;//function end index
     int funid;//函数基地址index
     int funtabid;
-    int j,k,t,m,n;
-    int reserve = 40;//保留区的长度
-    char tmp[10]={"str"};
-    char no[5];
+    int labid;
+    int addr;
+    int addrreg;
+    int basicreg;
+
+    int j;//k,t,m,n;
+    //int reserve = 16;//保留区的长度
+    //char tmp[10]={"str"};
+    //char no[5];
 
 
-    //i = openoutput();
-
-    //if(i==0)
-       // return;
 
     printf(".data\n");
 
@@ -4999,7 +5939,7 @@ void genemips()
         {
             rstabid = medstack[rs].tbindex;
             //全局变量
-            if(table[rstabid].type==1||table[rstabid].type==2)
+            if(table[rstabid].type==2)
             {
                 printf("%s: .word 0 \n",table[rstabid].name);
             }
@@ -5015,13 +5955,14 @@ void genemips()
 
     for(j=0;j<strindex;j++)
     {
-        printf("str%d: .asciiz \"%s\"\n",j,strings[j]);
+        printf("$str%d: .asciiz \"%s\"\n",j,strings[j]);
 
     }
 
 
     printf(".text\n");
     printf("j $end\n");
+
 
     for(;i<medialindex;i++)
     {
@@ -5038,7 +5979,7 @@ void genemips()
             case ADD:
                 rsint = FALSE;
                 rtint = FALSE;
-                rdint = FALSE;
+
 
                 if(medstack[rs].tbindex!=-1)
                 {
@@ -5053,6 +5994,7 @@ void genemips()
                             rsv = table[rstabid].valuec;
 
                     }
+
 
                 }
                 if(medstack[rt].tbindex!=-1)
@@ -5074,24 +6016,15 @@ void genemips()
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-
+                        rdreg = calreg(3,rd);
                         j = rsv+rtv;
-
                         printf("addi $%d $0 %d\n",rdreg,j);
 
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
-
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
                         printf("addi $%d $%d %d\n",rdreg,rtreg,rsv);
 
                     }
@@ -5101,41 +6034,30 @@ void genemips()
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rdreg = calreg(3,rd);
                         printf("addi $%d $%d %d\n",rdreg,rsreg,rtv);
 
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
                         printf("add $%d $%d $%d\n",rdreg,rsreg,rtreg);
-
                     }
                 }
+
+                //写回内存
+                if(rdreg<14)
+                    swreg(rd,rdreg);
 
 
                 break;
             case SUB:
                 rsint = FALSE;
                 rtint = FALSE;
-                rdint = FALSE;
+
 
                 if(medstack[rs].tbindex!=-1)
                 {
@@ -5171,26 +6093,19 @@ void genemips()
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
+                        rdreg = calreg(3,rd);
                         j = rsv-rtv;
-
-
                         printf("addi $%d $0 %d\n",rdreg,j);
 
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
+                        rsreg = 13;
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
+                        printf("addi $%d $0 %d\n",rsreg,rsv);
 
-                        printf("subi $%d $%d %d\n",rdreg,rtreg,rsv);
-                        printf("sub $%d $0 $%d\n",rdreg,rdreg);
+                        printf("sub $%d $%d $%d\n",rdreg,rsreg,rtreg);
 
                     }
                 }
@@ -5199,41 +6114,29 @@ void genemips()
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rdreg = calreg(3,rd);
                         printf("subi $%d $%d %d\n",rdreg,rsreg,rtv);
 
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
                         printf("sub $%d $%d $%d\n",rdreg,rsreg,rtreg);
-
                     }
                 }
 
+                //写回内存
+                if(rdreg<14)
+                    swreg(rd,rdreg);
 
                 break;
             case MUL:
                 rsint = FALSE;
                 rtint = FALSE;
-                rdint = FALSE;
+
 
                 if(medstack[rs].tbindex!=-1)
                 {
@@ -5269,24 +6172,15 @@ void genemips()
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-
+                        rdreg = calreg(3,rd);
                         j = rsv*rtv;
-
                         printf("addi $%d $0 %d\n",rdreg,j);
 
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
-
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
                         printf("mul $%d $%d %d\n",rdreg,rtreg,rsv);
 
                     }
@@ -5296,41 +6190,28 @@ void genemips()
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rdreg = calreg(3,rd);
                         printf("mul $%d $%d %d\n",rdreg,rsreg,rtv);
 
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
                         printf("mul $%d $%d $%d\n",rdreg,rsreg,rtreg);
-
                     }
                 }
 
+                //写回内存
+                if(rdreg<14)
+                    swreg(rd,rdreg);
 
                 break;
             case DIV:
                 rsint = FALSE;
                 rtint = FALSE;
-                rdint = FALSE;
 
 
                 if(medstack[rs].tbindex!=-1)
@@ -5362,33 +6243,23 @@ void genemips()
                     }
                 }
 
-
                 if(rsint==TRUE)
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
+                        rdreg = calreg(3,rd);
                         j = rsv/rtv;
-
-
                         printf("addi $%d $0 %d\n",rdreg,j);
 
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
-
-                        rsreg = allocregforint(rsv,funid);
+                        rsreg = 13;
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
+                        printf("addi $%d $0 %d\n",rsreg,rsv);
 
                         printf("div $%d $%d $%d\n",rdreg,rsreg,rtreg);
-
 
                     }
                 }
@@ -5397,41 +6268,28 @@ void genemips()
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rdreg = calreg(3,rd);
                         printf("div $%d $%d %d\n",rdreg,rsreg,rtv);
 
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
                         printf("div $%d $%d $%d\n",rdreg,rsreg,rtreg);
-
                     }
                 }
 
+                //写回内存
+                if(rdreg<14)
+                    swreg(rd,rdreg);
 
                 break;
             case BIG:
                 rsint = FALSE;
                 rtint = FALSE;
-                rdint = FALSE;
 
 
                 if(medstack[rs].tbindex!=-1)
@@ -5464,32 +6322,23 @@ void genemips()
                 }
 
 
-                if(rsint==TRUE)
+                 if(rsint==TRUE)
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
+                        rdreg = calreg(3,rd);
                         j = ((rsv>rtv)?1:0);
-
-
                         printf("addi $%d $0 %d\n",rdreg,j);
 
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
-
-                        rsreg = allocregforint(rsv,funid);
+                        rsreg = 13;
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
+                        printf("addi $%d $0 %d\n",rsreg,rsv);
 
                         printf("sgt $%d $%d $%d\n",rdreg,rsreg,rtreg);
-
 
                     }
                 }
@@ -5498,35 +6347,23 @@ void genemips()
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rdreg = calreg(3,rd);
                         printf("sgt $%d $%d %d\n",rdreg,rsreg,rtv);
 
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
                         printf("sgt $%d $%d $%d\n",rdreg,rsreg,rtreg);
-
                     }
                 }
 
+                //写回内存
+                if(rdreg<14)
+                    swreg(rd,rdreg);
 
                 break;
 
@@ -5534,7 +6371,7 @@ void genemips()
             case SMA:
                 rsint = FALSE;
                 rtint = FALSE;
-                rdint = FALSE;
+
 
 
                 if(medstack[rs].tbindex!=-1)
@@ -5567,32 +6404,24 @@ void genemips()
                 }
 
 
+
                 if(rsint==TRUE)
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
+                        rdreg = calreg(3,rd);
                         j = ((rsv<rtv)?1:0);
-
-
                         printf("addi $%d $0 %d\n",rdreg,j);
 
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
-
-                        rsreg = allocregforint(rsv,funid);
+                        rsreg = 13;
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
+                        printf("addi $%d $0 %d\n",rsreg,rsv);
 
                         printf("slt $%d $%d $%d\n",rdreg,rsreg,rtreg);
-
 
                     }
                 }
@@ -5601,41 +6430,33 @@ void genemips()
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rdreg = calreg(3,rd);
                         printf("slti $%d $%d %d\n",rdreg,rsreg,rtv);
 
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
                         printf("slt $%d $%d $%d\n",rdreg,rsreg,rtreg);
-
                     }
                 }
+
+                //写回内存
+                if(rdreg<14)
+                    swreg(rd,rdreg);
+
+
+
 
 
                 break;
             case EQU:
                 rsint = FALSE;
                 rtint = FALSE;
-                rdint = FALSE;
+
 
 
                 if(medstack[rs].tbindex!=-1)
@@ -5667,33 +6488,23 @@ void genemips()
                     }
                 }
 
-
                 if(rsint==TRUE)
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
+                        rdreg = calreg(3,rd);
                         j = ((rsv==rtv)?1:0);
-
-
                         printf("addi $%d $0 %d\n",rdreg,j);
 
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
-
-                        rsreg = allocregforint(rsv,funid);
+                        rsreg = 13;
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
+                        printf("addi $%d $0 %d\n",rsreg,rsv);
 
                         printf("seq $%d $%d $%d\n",rdreg,rsreg,rtreg);
-
 
                     }
                 }
@@ -5702,41 +6513,31 @@ void genemips()
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rdreg = calreg(3,rd);
                         printf("seq $%d $%d %d\n",rdreg,rsreg,rtv);
 
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
                         printf("seq $%d $%d $%d\n",rdreg,rsreg,rtreg);
-
                     }
                 }
+
+                //写回内存
+                if(rdreg<14)
+                    swreg(rd,rdreg);
+
 
 
                 break;
             case BEQU:
                 rsint = FALSE;
                 rtint = FALSE;
-                rdint = FALSE;
+
 
 
                 if(medstack[rs].tbindex!=-1)
@@ -5768,33 +6569,23 @@ void genemips()
                     }
                 }
 
-
                 if(rsint==TRUE)
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
+                        rdreg = calreg(3,rd);
                         j = ((rsv>=rtv)?1:0);
-
-
                         printf("addi $%d $0 %d\n",rdreg,j);
 
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
-
-                        rsreg = allocregforint(rsv,funid);
+                        rsreg = 13;
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
+                        printf("addi $%d $0 %d\n",rsreg,rsv);
 
                         printf("sge $%d $%d $%d\n",rdreg,rsreg,rtreg);
-
 
                     }
                 }
@@ -5803,40 +6594,30 @@ void genemips()
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rdreg = calreg(3,rd);
                         printf("sge $%d $%d %d\n",rdreg,rsreg,rtv);
 
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
                         printf("sge $%d $%d $%d\n",rdreg,rsreg,rtreg);
-
                     }
                 }
+
+                //写回内存
+                if(rdreg<14)
+                    swreg(rd,rdreg);
+
 
                 break;
             case SEQU:
                 rsint = FALSE;
                 rtint = FALSE;
-                rdint = FALSE;
+
 
 
                 if(medstack[rs].tbindex!=-1)
@@ -5868,33 +6649,23 @@ void genemips()
                     }
                 }
 
-
                 if(rsint==TRUE)
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
+                        rdreg = calreg(3,rd);
                         j = ((rsv<=rtv)?1:0);
-
-
                         printf("addi $%d $0 %d\n",rdreg,j);
 
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
-
-                        rsreg = allocregforint(rsv,funid);
+                        rsreg = 13;
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
+                        printf("addi $%d $0 %d\n",rsreg,rsv);
 
                         printf("sle $%d $%d $%d\n",rdreg,rsreg,rtreg);
-
 
                     }
                 }
@@ -5903,35 +6674,23 @@ void genemips()
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rdreg = calreg(3,rd);
                         printf("sle $%d $%d %d\n",rdreg,rsreg,rtv);
 
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
                         printf("sle $%d $%d $%d\n",rdreg,rsreg,rtreg);
-
                     }
                 }
 
+                //写回内存
+                if(rdreg<14)
+                    swreg(rd,rdreg);
 
 
 
@@ -5939,7 +6698,7 @@ void genemips()
             case NOT:
                 rsint = FALSE;
                 rtint = FALSE;
-                rdint = FALSE;
+
 
 
                 if(medstack[rs].tbindex!=-1)
@@ -5961,14 +6720,8 @@ void genemips()
 
                 if(rsint==TRUE)
                 {
-
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-
-
-
-                        printf("subi $%d $0 %d\n",rdreg,rsv);
+                    rdreg = calreg(3,rd);
+                    printf("subi $%d $0 %d\n",rdreg,rsv);
 
 
                 }
@@ -5976,17 +6729,17 @@ void genemips()
                 else
                 {
 
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
+                    rsreg = calreg(1,rs);
+                    rdreg = calreg(3,rd);
+                    printf("sub $%d $0 $%d\n",rdreg,rsreg);
 
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
 
-                        printf("sub $%d $0 $%d\n",rdreg,rsreg);
 
                 }
+
+                //写回内存
+                if(rdreg<14)
+                    swreg(rd,rdreg);
 
 
                 break;
@@ -5995,7 +6748,7 @@ void genemips()
             case NEQU:
                 rsint = FALSE;
                 rtint = FALSE;
-                rdint = FALSE;
+
 
                 if(medstack[rs].tbindex!=-1)
                 {
@@ -6031,24 +6784,19 @@ void genemips()
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        if(rsv==rtv)
-                            printf("ori $%d $0 0\n",rdreg);
-                        else
-                            printf("ori $%d $0 1\n",rdreg);
+                        rdreg = calreg(3,rd);
+                        j = ((rsv!=rtv)?1:0);
+                        printf("addi $%d $0 %d\n",rdreg,j);
+
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
+                        rsreg = 13;
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
+                        printf("addi $%d $0 %d\n",rsreg,rsv);
 
-                        printf("sne $%d $%d %d\n",rdreg,rtreg,rsv);
+                        printf("sne $%d $%d $%d\n",rdreg,rsreg,rtreg);
 
                     }
                 }
@@ -6057,100 +6805,148 @@ void genemips()
                 {
                     if(rtint==TRUE)
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rdreg = calreg(3,rd);
                         printf("sne $%d $%d %d\n",rdreg,rsreg,rtv);
 
                     }
                     else
                     {
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-                        rtreg = isalloc(rt);
-                        if(rtreg==-1)
-                            rtreg = allocreg(rt,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
+                        rsreg = calreg(1,rs);
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
                         printf("sne $%d $%d $%d\n",rdreg,rsreg,rtreg);
-
                     }
                 }
+
+                //写回内存
+                if(rdreg<14)
+                    swreg(rd,rdreg);
+
 
 
 
                 break;
             case ASN:
+                rsint = FALSE;
+                rtint = FALSE;
 
-                k = isalloc(rd);
-                if(k==-1)
-                {
-                    k = allocreg(rd,funid);
-                }
 
                 if(medstack[rs].tbindex!=-1)
                 {
-                    j = medstack[rs].tbindex;
-                    if(table[j].obj==1)
+                    rstabid = medstack[rs].tbindex;
+                    //rs为常数
+                    if(table[rstabid].obj==1)
                     {
-                        if(table[j].type==1)
-                            printf("addi $%d $0 %d\n",k,table[j].valuei);
+                        rsint = TRUE;
+                        if(table[rstabid].type==1)
+                            rsv = table[rstabid].valuei;
                         else
-                            printf("addi $%d $0 %d\n",k,table[j].valuec);
-                    }
-                    else
-                    {
-                        t = isalloc(rs);
-                        if(t==-1)
-                            t = allocreg(rs,funid);
-                        printf("move $%d $%d\n",k,t);
+                            rsv = table[rstabid].valuec;
 
                     }
+
+                }
+
+                if(rsint==TRUE)
+                {
+                    rdreg = calreg(3,rd);
+                    printf("addi $%d $0 %d\n",rdreg,rsv);
+
+
                 }
 
                 else
                 {
-                        t = isalloc(rs);
-                        if(t==-1)
-                            t = allocreg(rs,funid);
-                        printf("move $%d $%d\n",k,t);
+
+                    rsreg = calreg(1,rs);
+                    rdreg = calreg(3,rd);
+                    printf("move $%d $%d\n",rdreg,rsreg);
+
+
 
                 }
+
+                //写回内存
+                if(rdreg<14)
+                    swreg(rd,rdreg);
+
+
+
 
 
                 break;
             case BEQ:
 
-                k = isalloc(rs);
-                if(k==-1)
+                rsint = FALSE;
+                rtint = FALSE;
+
+
+                if(medstack[rs].tbindex!=-1)
                 {
-                    k = allocreg(rs,funid);
+                    rstabid = medstack[rs].tbindex;
+                    //rs为常数
+                    if(table[rstabid].obj==1)
+                    {
+                        rsint = TRUE;
+                        if(table[rstabid].type==1)
+                            rsv = table[rstabid].valuei;
+                        else
+                            rsv = table[rstabid].valuec;
+
+                    }
+
                 }
-                //跳转到函数
-                if(medstack[rd].tbindex!=-1)
+
+                if(rsint==TRUE)
                 {
-                    funtabid = medstack[rd].tbindex;
-                    printf("beq $%d $0 %s\n",k,table[funtabid].name);
+                    rsreg = 13;
+                    printf("addi $%d $0 %d\n",rsreg,rsv);
+
+                    if(medstack[rd].tbindex!=-1)
+                    {
+                        funtabid = medstack[rd].tbindex;
+
+                        printf("beq $%d $0 %s\n",rsreg,table[funtabid].name);
+                    }
+                    else if(medstack[rd].lableindex!=-1)
+                    {
+                        labid = medstack[rd].lableindex;
+                        printf("beq $%d $0 %s\n",rsreg,labels[labid].name);
+
+                    }
+
+
                 }
-                //跳转到条件标签
+
                 else
                 {
-                    t = medstack[rd].lableindex;
-                    printf("beq $%d $0 %s\n",k,labels[t].name);
+
+                    rsreg = calreg(1,rs);
+                    if(medstack[rd].tbindex!=-1)
+                    {
+                        funtabid = medstack[rd].tbindex;
+
+                        printf("beq $%d $0 %s\n",rsreg,table[funtabid].name);
+                    }
+                    else if(medstack[rd].lableindex!=-1)
+                    {
+                        labid = medstack[rd].lableindex;
+                        printf("beq $%d $0 %s\n",rsreg,labels[labid].name);
+
+                    }
+
+
+
                 }
+
+
 
 
                 break;
             case GOTO:
+
+
                 //跳转到函数
                 if(medstack[rd].tbindex!=-1)
                 {
@@ -6160,10 +6956,8 @@ void genemips()
                 //跳转到条件标签
                 else
                 {
-                    k = medstack[rd].lableindex;
-                    printf("j %s\n",labels[k].name);
-                    //writebackmem(funid);
-                    //initreg();
+                    labid = medstack[rd].lableindex;
+                    printf("j %s\n",labels[labid].name);
                 }
 
                 break;
@@ -6177,8 +6971,8 @@ void genemips()
                 //设置条件跳转标签
                 else
                 {
-                    k = medstack[rs].lableindex;
-                    printf("%s:\n",labels[k].name);
+                    labid = medstack[rs].lableindex;
+                    printf("%s:\n",labels[labid].name);
                 }
 
 
@@ -6188,25 +6982,25 @@ void genemips()
 
                 funid = rs;
                 funtabid = medstack[funid].tbindex;
-                j = table[funtabid].length+reserve;
+                j = table[funtabid].length+RESERVE;
 
                 j*=4;
 
-                printf("move $fp $sp\n");
+
                 printf("subi $sp $sp %d\n",j);
                 printsw();
-                initreg();
+                printf("addi $fp $sp %d\n",j);
+                checkpara(funtabid);
 
                 break;
             case END:
 
                 funid = rs;
                 funtabid = medstack[funid].tbindex;
-                j = table[funtabid].length+reserve;
+                j = table[funtabid].length+RESERVE;
 
                 j*=4;
-                //write将寄存器里的值写回内存
-                writebackmem(funid);
+
 
                 printlw();
 
@@ -6215,97 +7009,171 @@ void genemips()
                 break;
             case SW:
 
+                rtint = FALSE;
+
+                if(medstack[rt].tbindex!=-1)
+                {
+                    rttabid = medstack[rt].tbindex;
+                    //rt为常数
+                    if(table[rttabid].obj==1)
+                    {
+                        rtint = TRUE;
+                        if(table[rttabid].type==1)
+                            rtv = table[rttabid].valuei;
+                        else
+                            rtv = table[rttabid].valuec;
+                    }
+                }
+
+
 
                 rstabid = medstack[rs].tbindex;
 
+
+                //基地址不需要*4，偏移量需要，不用将寄存器写回内存
                 //全局变量数组
                 if(table[rstabid].scope==0)
                 {
-                    rtreg = isalloc(rt);
-                    if(rtreg==-1)
-                        rtreg = allocreg(rt,funid);
+                    //偏移量为常数
+                    if(rtint==TRUE)
+                    {
+                        addrreg = 6;
+                        rdreg = calreg(1,rd);
+                        printf("addi $%d $0 %d\n",addrreg,(rtv*4));
+                        printf("sw $%d %s($%d)\n",rdreg,table[rstabid].name,addrreg);
+                    }
+                    else
+                    {
 
-                    rdreg = isalloc(rd);
-                    if(rdreg==-1)
-                        rdreg = allocreg(rd,funid);
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(1,rd);
+                        addrreg = 6;
+                        printf("sll $%d $%d 2\n",addrreg,rtreg);
+                        printf("sw $%d %s($%d)\n",rdreg,table[rstabid].name,addrreg);
+                    }
 
-                    tmpreg = allocregforint(0,funid);
-
-                    printf("sll $%d $%d 2\n",tmpreg,rtreg);
-
-                    printf("sw $%d %s($%d)\n",rdreg,table[rstabid].name,tmpreg);
                 }
 
                 //局部变量数组
                 else
                 {
-                    rsv = (table[rstabid].offset)*4;
+                    //计算数组基地址
+                    basicreg = 5;
+                    printf("addi $%d $0 %d\n",basicreg,(table[rstabid].offset));
 
-                    //rsreg = allocregforint(rsv,funid);
+                    //偏移量为常数
+                    if(rtint==TRUE)
+                    {
+                        addrreg = 6;
+                        rdreg = calreg(1,rd);
+                        printf("addi $%d $%d %d\n",addrreg,basicreg,(rtv*4));
+                        printf("sub $%d $fp $%d\n",addrreg,addrreg);
+                        printf("sw $%d 0($%d)\n",rdreg,addrreg);
+                    }
+                    else
+                    {
 
-                    rtreg = isalloc(rt);
-                    if(rtreg==-1)
-                        rtreg = allocreg(rt,funid);
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(1,rd);
+                        addrreg = 6;
 
-                    rdreg = isalloc(rd);
-                    if(rdreg==-1)
-                        rdreg = allocreg(rd,funid);
+                        printf("sll $%d $%d 2\n",addrreg,rtreg);
+                        printf("add $%d $%d $%d\n",addrreg,basicreg,addrreg);
+                        printf("sub $%d $fp $%d\n",addrreg,addrreg);
+                        printf("sw $%d 0($%d)\n",rdreg,addrreg);
 
-                    tmpreg = allocregforint(0,funid);
+                    }
 
-                    printf("sll $%d $%d 2\n",tmpreg,rtreg);
-                    printf("add $%d $%d $fp\n",tmpreg,tmpreg);
 
-                    printf("sw $%d %d($%d)\n",rdreg,rsv,tmpreg);
 
                 }
 
 
                 break;
             case LW:
+                rtint = FALSE;
+
+                if(medstack[rt].tbindex!=-1)
+                {
+                    rttabid = medstack[rt].tbindex;
+                    //rt为常数
+                    if(table[rttabid].obj==1)
+                    {
+                        rtint = TRUE;
+                        if(table[rttabid].type==1)
+                            rtv = table[rttabid].valuei;
+                        else
+                            rtv = table[rttabid].valuec;
+                    }
+                }
+
+
+
                 rstabid = medstack[rs].tbindex;
 
+
+                //基地址不需要*4，偏移量需要，需要将寄存器写回内存
                 //全局变量数组
                 if(table[rstabid].scope==0)
                 {
-                    rtreg = isalloc(rt);
-                    if(rtreg==-1)
-                        rtreg = allocreg(rt,funid);
+                    //偏移量为常数
+                    if(rtint==TRUE)
+                    {
+                        addrreg = 6;
+                        rdreg = calreg(3,rd);
+                        printf("addi $%d $0 %d\n",addrreg,(rtv*4));
+                        printf("lw $%d %s($%d)\n",rdreg,table[rstabid].name,addrreg);
+                    }
+                    else
+                    {
 
-                    rdreg = isalloc(rd);
-                    if(rdreg==-1)
-                        rdreg = allocreg(rd,funid);
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
+                        addrreg = 6;
+                        printf("sll $%d $%d 2\n",addrreg,rtreg);
+                        printf("lw $%d %s($%d)\n",rdreg,table[rstabid].name,addrreg);
+                    }
 
-                    tmpreg = allocregforint(0,funid);
-
-                    printf("sll $%d $%d 2\n",tmpreg,rtreg);
-                    printf("lw $%d %s($%d)\n",rdreg,table[rstabid].name,tmpreg);
                 }
 
                 //局部变量数组
                 else
                 {
-                    rsv = (table[rstabid].offset)*4;
+                    //计算数组基地址
+                    basicreg = 5;
+                    printf("addi $%d $0 %d\n",basicreg,(table[rstabid].offset));
 
-                    //rsreg = allocregforint(rsv,funid);
+                    //偏移量为常数
+                    if(rtint==TRUE)
+                    {
+                        addrreg = 6;
+                        rdreg = calreg(3,rd);
+                        printf("addi $%d $%d %d\n",addrreg,basicreg,(rtv*4));
+                        printf("sub $%d $fp $%d\n",addrreg,addrreg);
+                        printf("lw $%d 0($%d)\n",rdreg,addrreg);
+                    }
+                    else
+                    {
 
-                    rtreg = isalloc(rt);
-                    if(rtreg==-1)
-                        rtreg = allocreg(rt,funid);
+                        rtreg = calreg(2,rt);
+                        rdreg = calreg(3,rd);
+                        addrreg = 6;
 
-                    rdreg = isalloc(rd);
-                    if(rdreg==-1)
-                        rdreg = allocreg(rd,funid);
+                        printf("sll $%d $%d 2\n",addrreg,rtreg);
+                        printf("add $%d $%d $%d\n",addrreg,basicreg,addrreg);
+                        printf("sub $%d $fp $%d\n",addrreg,addrreg);
+                        printf("lw $%d 0($%d)\n",rdreg,addrreg);
 
-                    tmpreg = allocregforint(0,funid);
+                    }
 
-                    printf("sll $%d $%d 2\n",tmpreg,rtreg);
-                     printf("add $%d $%d $fp\n",tmpreg,tmpreg);
 
-                    printf("lw $%d %d($%d)\n",rdreg,rsv,tmpreg);
 
                 }
 
+
+                //写回内存
+                if(rdreg<14)
+                    swreg(rd,rdreg);
 
 
                 break;
@@ -6321,6 +7189,8 @@ void genemips()
                 break;
             case FORM:
 
+
+                //不需要写回内存
                 while(i<medialindex&&medial[i].op==FORM)
                 {
                     rsint = FALSE;
@@ -6343,79 +7213,36 @@ void genemips()
 
                     if(rsint==TRUE)
                     {
-                        rsreg = allocregforint(rsv,funid);
+                        rsreg = 13;
+                        printf("addi $%d $0 %d\n",rsreg,rsv);
+
+                        addr = 0-(rt*4);
+                        printf("sw $%d %d($sp)\n",rsreg,addr);
+
                     }
                     else
                     {
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
+                        rsreg = calreg(1,rs);
+
+                        addr = 0-(rt*4);
+                        printf("sw $%d %d($sp)\n",rsreg,addr);
                     }
 
 
-                    m = -(rt*4);
 
-                    printf("sw $%d %d($sp)\n",rsreg,m);
                     i++;
                 }
+
                 i--;
 
-                /*
-                j = i;
 
-                while(j<medialindex&&medial[j].op==FORM)
-                    j++;
-                t = j-i;
-
-                if(t<4)
-                {
-                    for(k=0;i<j;i++,k++)
-                    {
-                        rs = medial[i].rs;
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
-                        printf("move $a%d $%d\n",k,rsreg);
-                    }
-
-                }
-
-                else
-                {
-                    for(k=0;k<4;i++,k++)
-                    {
-                        rs = medial[i].rs;
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
-                        printf("move $a%d $%d\n",k,rsreg);
-                    }
-                    t-=4;
-
-                    for(k=1;k<=t&&medial[i].op==FORM;k++,i++)
-                    {
-                        rs = medial[i].rs;
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
-                        m = k*4;
-
-                        printf("sw $%d %d($sp)\n",rsreg,m);
-                    }
-
-                }
-
-                i = j-1;
-                */
                 break;
             case RETURN:
 
                 if(rs==0)
                     printf("move $v0 $0\n");
 
+                //不需要写回内存
                 else
                 {
                     if(medstack[rs].tbindex!=-1)
@@ -6433,9 +7260,8 @@ void genemips()
                         }
                         else
                         {
-                            rsreg = isalloc(rs);
-                            if(rsreg==-1)
-                                rsreg = allocreg(rs,funid);
+                            rsreg = calreg(1,rs);
+
                             printf("move $v0 $%d\n",rsreg);
                         }
 
@@ -6443,9 +7269,7 @@ void genemips()
 
                     else
                     {
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
+                         rsreg = calreg(1,rs);
                          printf("move $v0 $%d\n",rsreg);
                     }
 
@@ -6453,14 +7277,11 @@ void genemips()
                 }
 
                 break;
-            case PARA:
 
-
-                break;
             case ADDI:
                 rsint = FALSE;
                 rtint = FALSE;
-                rdint = FALSE;
+
 
                 if(medstack[rs].tbindex!=-1)
                 {
@@ -6482,33 +7303,23 @@ void genemips()
 
                 if(rsint==TRUE)
                 {
-
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-
-                        j = rsv+rt;
-
-                        printf("addi $%d $0 %d\n",rdreg,j);
-
+                    rdreg = calreg(3,rd);
+                    j = rsv+rt;
+                    printf("addi $%d $0 %d\n",rdreg,j);
 
                 }
 
                 else
                 {
-
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
-                        printf("addi $%d $%d %d\n",rdreg,rsreg,rt);
-
+                    rdreg = calreg(3,rd);
+                    rsreg = calreg(1,rs);
+                    printf("addi $%d $%d %d\n",rdreg,rsreg,rt);
 
                 }
+
+                //写回内存
+                if(rdreg<14)
+                    swreg(rd,rdreg);
 
 
                 break;
@@ -6517,7 +7328,7 @@ void genemips()
             case SUBI:
                 rsint = FALSE;
                 rtint = FALSE;
-                rdint = FALSE;
+
 
                 if(medstack[rs].tbindex!=-1)
                 {
@@ -6540,13 +7351,9 @@ void genemips()
                 if(rsint==TRUE)
                 {
 
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-
-                        j = rsv-rt;
-
-                        printf("addi $%d $0 %d\n",rdreg,j);
+                    rdreg = calreg(3,rd);
+                    j = rsv-rt;
+                    printf("addi $%d $0 %d\n",rdreg,j);
 
 
                 }
@@ -6554,30 +7361,61 @@ void genemips()
                 else
                 {
 
-                        rdreg = isalloc(rd);
-                        if(rdreg==-1)
-                            rdreg = allocreg(rd,funid);
-
-                        rsreg = isalloc(rs);
-                        if(rsreg==-1)
-                            rsreg = allocreg(rs,funid);
-
-                        printf("addi $%d $%d %d\n",rdreg,rsreg,rt);
-
-
+                    rdreg = calreg(3,rd);
+                    rsreg = calreg(1,rs);
+                    printf("subi $%d $%d %d\n",rdreg,rsreg,rt);
                 }
+
+                //写回内存
+                if(rdreg<14)
+                    swreg(rd,rdreg);
 
                 break;
             case RD:
 
-                rsreg = isalloc(rs);
-                if(rsreg==-1)
-                    rsreg = allocreg(rs,funid);
+                rsreg = calreg(3,rs);
 
-                //read
-                printf("li $v0 5\n");
-                printf("syscall\n");
-                printf("move $%d $v0\n",rsreg);
+                if(medstack[rs].tbindex!=-1)
+                {
+                    rstabid = medstack[rs].tbindex;
+                    //读int
+                    if(table[rstabid].type==1)
+                    {
+                        printf("li $v0 5\n");
+                        printf("syscall\n");
+                        printf("move $%d $v0\n",rsreg);
+                    }
+                    //读char
+                    else if(table[rstabid].type==2)
+                    {
+                        printf("li $v0 12\n");
+                        printf("syscall\n");
+                        printf("move $%d $v0\n",rsreg);
+                    }
+                }
+
+                else if(medstack[rs].tpindex!=-1)
+                {
+                    rstmpid = medstack[rs].tpindex;
+                    //读int
+                    if(table[rstmpid].type==1)
+                    {
+                        printf("li $v0 5\n");
+                        printf("syscall\n");
+                        printf("move $%d $v0\n",rsreg);
+                    }
+                    //读char
+                    else if(table[rstmpid].type==2)
+                    {
+                        printf("li $v0 12\n");
+                        printf("syscall\n");
+                        printf("move $%d $v0\n",rsreg);
+                    }
+                }
+
+                //写回内存
+                if(rsreg<14)
+                    swreg(rs,rsreg);
 
 
 
@@ -6588,31 +7426,59 @@ void genemips()
                 if(medstack[rs].tbindex!=-1)
                 {
                     rstabid = medstack[rs].tbindex;
+                    //写表达式的值
                     if(table[rstabid].obj!=5)
                     {
-                         rsreg = isalloc(rs);
-                         if(rsreg==-1)
-                             rsreg = allocreg(rs,funid);
-                        printf("li $v0 1\n");
-                        printf("move $a0 $%d\n",rsreg);
-                        printf("syscall\n");
+                        rsreg = calreg(1,rs);
+
+                        //写int
+                        if(table[rstabid].type==1)
+                        {
+                            printf("li $v0 1\n");
+                            printf("move $a0 $%d\n",rsreg);
+                            printf("syscall\n");
+
+                        }
+                        //写char
+                        else if(table[rstabid].type==2)
+                        {
+                            printf("li $v0 11\n");
+                            printf("move $a0 $%d\n",rsreg);
+                            printf("syscall\n");
+                        }
+
+
                     }
+                    //写字符串
                     else
                     {
                         j = table[rstabid].locate;
                         printf("li $v0 4\n");
-                        printf("la $a0 str%d\n",j);
+                        printf("la $a0 $str%d\n",j);
                         printf("syscall\n");
                     }
                 }
-                else
+                else if(medstack[rs].tpindex!=-1)
                 {
-                    rsreg = isalloc(rs);
-                    if(rsreg==-1)
-                        rsreg = allocreg(rs,funid);
-                     printf("li $v0 1\n");
-                    printf("move $a0 $%d\n",rsreg);
-                    printf("syscall\n");
+                    rstmpid = medstack[rs].tpindex;
+                    rsreg = calreg(1,rs);
+
+                    //写int
+                    if(tempv[rstmpid].type==1)
+                    {
+                        printf("li $v0 1\n");
+                        printf("move $a0 $%d\n",rsreg);
+                        printf("syscall\n");
+
+                    }
+                    //写char
+                    else if(tempv[rstmpid].type==2)
+                    {
+                        printf("li $v0 11\n");
+                        printf("move $a0 $%d\n",rsreg);
+                        printf("syscall\n");
+                    }
+
                 }
 
 
@@ -6645,6 +7511,19 @@ int main()
 
     program();
 
+
+
+
+
+    genblocks();
+    dag();
+    alloc();
+
+    freopen("C:\\Users\\forever\\Documents\\GitHub\\Compiler\\SourceCodes\\out.txt","w",stdout);
+
+    //openoutput();
+
+
     genemips();
 
     //printgetsym();
@@ -6658,8 +7537,10 @@ int main()
     */
 
     //printf("hello world\n");
+   // free(file1);
     free(file);
-    //free(file1);
     return 0;
 }
+
+
 

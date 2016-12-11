@@ -1,0 +1,179 @@
+success to open the output file
+.data
+$str0: .asciiz "Please enter n integers to sort:"
+$str1: .asciiz " "
+.text
+j $end
+main:
+subi $sp $sp 524
+sw $ra 64($sp)
+sw $fp 60($sp)
+sw $14 56($sp)
+sw $15 52($sp)
+sw $16 48($sp)
+sw $17 44($sp)
+sw $18 40($sp)
+sw $19 36($sp)
+sw $20 32($sp)
+sw $21 28($sp)
+sw $22 24($sp)
+sw $23 20($sp)
+sw $24 16($sp)
+sw $25 12($sp)
+addi $fp $sp 524
+li $v0 5
+syscall
+move $10 $v0
+li $v0 4
+la $a0 $str0
+syscall
+addi $10 $0 0
+sw $10 -0($fp)
+$labe2:
+lw $8 -0($fp)
+lw $9 -3($fp)
+slt $10 $8 $9
+sw $10 --1($fp)
+lw $8 --1($fp)
+beq $8 $0 $labe3
+li $v0 5
+syscall
+move $10 $v0
+addi $5 $0 20
+lw $9 -0($fp)
+lw $8 -2($fp)
+sll $6 $9 2
+add $6 $5 $6
+add $6 $fp $6
+sw $8 0($6)
+lw $8 -0($fp)
+addi $10 $8 1
+sw $10 -0($fp)
+j $labe2
+$labe3:
+addi $10 $0 0
+sw $10 -0($fp)
+$labe4:
+lw $8 -0($fp)
+lw $9 -3($fp)
+slt $10 $8 $9
+sw $10 --1($fp)
+lw $8 --1($fp)
+beq $8 $0 $labe5
+lw $8 -0($fp)
+move $10 $8
+sw $10 -1($fp)
+$labe6:
+lw $8 -1($fp)
+lw $9 -3($fp)
+slt $10 $8 $9
+sw $10 --1($fp)
+lw $8 --1($fp)
+beq $8 $0 $labe7
+addi $5 $0 20
+lw $9 -0($fp)
+sll $6 $9 2
+add $6 $5 $6
+add $6 $fp $6
+lw $10 0($6)
+sw $10 --1($fp)
+addi $5 $0 20
+lw $9 -1($fp)
+sll $6 $9 2
+add $6 $5 $6
+add $6 $fp $6
+lw $10 0($6)
+sw $10 --1($fp)
+lw $8 --1($fp)
+lw $9 --1($fp)
+sge $10 $8 $9
+sw $10 --1($fp)
+lw $8 --1($fp)
+beq $8 $0 $labe8
+addi $5 $0 20
+lw $9 -0($fp)
+sll $6 $9 2
+add $6 $5 $6
+add $6 $fp $6
+lw $10 0($6)
+sw $10 --1($fp)
+lw $8 --1($fp)
+move $10 $8
+sw $10 -4($fp)
+addi $5 $0 20
+lw $9 -1($fp)
+sll $6 $9 2
+add $6 $5 $6
+add $6 $fp $6
+lw $10 0($6)
+sw $10 --1($fp)
+addi $5 $0 20
+lw $9 -0($fp)
+lw $8 --1($fp)
+sll $6 $9 2
+add $6 $5 $6
+add $6 $fp $6
+sw $8 0($6)
+addi $5 $0 20
+lw $9 -1($fp)
+lw $8 -4($fp)
+sll $6 $9 2
+add $6 $5 $6
+add $6 $fp $6
+sw $8 0($6)
+$labe8:
+lw $8 -1($fp)
+addi $10 $8 1
+sw $10 -1($fp)
+j $labe6
+$labe7:
+lw $8 -0($fp)
+addi $10 $8 1
+sw $10 -0($fp)
+j $labe4
+$labe5:
+addi $10 $0 0
+sw $10 -0($fp)
+$labe9:
+lw $8 -0($fp)
+lw $9 -3($fp)
+slt $10 $8 $9
+sw $10 --1($fp)
+lw $8 --1($fp)
+beq $8 $0 $labe10
+addi $5 $0 20
+lw $9 -0($fp)
+sll $6 $9 2
+add $6 $5 $6
+add $6 $fp $6
+lw $10 0($6)
+sw $10 --1($fp)
+lw $8 --1($fp)
+li $v0 1
+move $a0 $8
+syscall
+li $v0 4
+la $a0 $str1
+syscall
+lw $8 -0($fp)
+addi $10 $8 1
+sw $10 -0($fp)
+j $labe9
+$labe10:
+lw $ra 64($sp)
+lw $fp 60($sp)
+lw $14 56($sp)
+lw $15 52($sp)
+lw $16 48($sp)
+lw $17 44($sp)
+lw $18 40($sp)
+lw $19 36($sp)
+lw $20 32($sp)
+lw $21 28($sp)
+lw $22 24($sp)
+lw $23 20($sp)
+lw $24 16($sp)
+lw $25 12($sp)
+addi $sp $sp 524
+jr $ra
+$end: jal main

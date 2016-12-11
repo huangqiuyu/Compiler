@@ -1,15 +1,16 @@
+
 int a[30];
 
 int read()
 {
 	int i,n,j;
-	scanf(n);
+	scanf("%d",&n);
 	for(i=0;i<n;i=i+1)
 	{
-		scanf(j);
+		scanf("%d",&j);
 		a[i] = j;
 	}
-	return (n);	
+	return (n);
 }
 
 
@@ -29,7 +30,7 @@ void quick(int s,int t)
                         i = i + 1;
                         ilab = 1;
                     }
-            }while(ilab==1)
+            }while(ilab==1);
 			do{
 			    jlab = 0;
                 if(a[s]<=a[j])
@@ -37,13 +38,13 @@ void quick(int s,int t)
                         j = j - 1;
                         jlab = 1;
                     }
-			}while(jlab==1)
+			}while(jlab==1);
             if(i<j){
                 temp = a[i];
                 a[i] = a[j];
                 a[j] = temp;
             }
-        }while(i<j)
+        }while(i<j);
         temp = a[s];
         a[s] = a[j];
         a[j] = temp;
@@ -56,14 +57,14 @@ void print(int n)
 {
 	int i;
 	for(i=0;i<n;i=i+1)
-		printf(" ",a[i]);
+		printf(" %d",a[i]);
 }
 
 void main(){
 	int n;
 	n=read();
-	
+
 	quick(0,n);
-	
+
 	print(n);
 }
