@@ -26,7 +26,8 @@ void quick(int s,int t)
             do{
                 ilab = 0;
                 if(a[s]>=a[i])
-                    if(i<t){
+                    if(i<t)
+                    {
                         i = i + 1;
                         ilab = 1;
                     }

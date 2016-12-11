@@ -97,7 +97,7 @@ addi $18 $0 1
 $labe8:
 $labe7:
 seq $25 $18 1
-beq $25 $0 $labe6
+bne $25 $0 $labe6
 $labe9:
 addi $19 $0 0
 sll $6 $16 2
@@ -126,7 +126,7 @@ $labe10:
 seq $10 $19 1
 sw $10 -28($fp)
 lw $8 -28($fp)
-beq $8 $0 $labe9
+bne $8 $0 $labe9
 slt $10 $15 $14
 sw $10 -32($fp)
 lw $8 -32($fp)
@@ -150,7 +150,7 @@ $labe12:
 slt $10 $15 $14
 sw $10 -40($fp)
 lw $8 -40($fp)
-beq $8 $0 $labe5
+bne $8 $0 $labe5
 sll $6 $16 2
 lw $10 a($6)
 sw $10 -52($fp)

@@ -2632,7 +2632,7 @@ void loopsta()
 
         beqs = condition();
 
-        genmedi(BEQ,beqs,0,dolabel);
+        genmedi(BEQ,beqs,1,dolabel);
         genmedi(LOOPEND,0,0,0);
 
         if(symbol!=RPAREN)
@@ -6907,12 +6907,19 @@ void genemips()
                     {
                         funtabid = medstack[rd].tbindex;
 
-                        printf("beq $%d $0 %s\n",rsreg,table[funtabid].name);
+                        if(rt==0)
+                            printf("beq $%d $0 %s\n",rsreg,table[funtabid].name);
+                        else if(rt==1)
+                            printf("bne $%d $0 %s\n",rsreg,table[funtabid].name);
                     }
                     else if(medstack[rd].lableindex!=-1)
                     {
                         labid = medstack[rd].lableindex;
-                        printf("beq $%d $0 %s\n",rsreg,labels[labid].name);
+
+                        if(rt==0)
+                            printf("beq $%d $0 %s\n",rsreg,labels[labid].name);
+                        else if(rt==1)
+                            printf("bne $%d $0 %s\n",rsreg,labels[labid].name);
 
                     }
 
@@ -6927,12 +6934,21 @@ void genemips()
                     {
                         funtabid = medstack[rd].tbindex;
 
-                        printf("beq $%d $0 %s\n",rsreg,table[funtabid].name);
+                        if(rt==0)
+                            printf("beq $%d $0 %s\n",rsreg,table[funtabid].name);
+                        else if(rt==1)
+                            printf("bne $%d $0 %s\n",rsreg,table[funtabid].name);
+
+
                     }
                     else if(medstack[rd].lableindex!=-1)
                     {
                         labid = medstack[rd].lableindex;
-                        printf("beq $%d $0 %s\n",rsreg,labels[labid].name);
+
+                        if(rt==0)
+                            printf("beq $%d $0 %s\n",rsreg,labels[labid].name);
+                        else if(rt==1)
+                            printf("bne $%d $0 %s\n",rsreg,labels[labid].name);
 
                     }
 
