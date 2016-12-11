@@ -5538,7 +5538,7 @@ void alloc()
             }
 
             //еепР
-            for(j=0;j<=k;j++)
+            for(j=0;j<k;j++)
             {
                 for(t=j+1;t<k;t++)
                 {
@@ -5556,7 +5556,7 @@ void alloc()
 
 
             //alloc reg and memory
-            for(j=0,t=0;j<=k;j++)
+            for(j=0,t=0;j<k;j++)
             {
                 medid = statis[j].id;
                 if(t<REGGSUM)

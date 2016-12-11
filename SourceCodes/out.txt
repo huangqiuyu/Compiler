@@ -87,8 +87,8 @@ sll $6 $16 2
 lw $20 a($6)
 sll $6 $15 2
 lw $21 a($6)
-sge $18 $20 $21
-beq $18 $0 $labe7
+sge $22 $20 $21
+beq $22 $0 $labe7
 slt $23 $15 $17
 beq $23 $0 $labe8
 addi $24 $15 1
@@ -218,9 +218,9 @@ li $v0 4
 la $a0 $str0
 syscall
 sll $6 $14 2
-lw $16 a($6)
+lw $17 a($6)
 li $v0 1
-move $a0 $16
+move $a0 $17
 syscall
 addi $14 $14 1
 j $labe13
