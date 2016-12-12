@@ -1,0 +1,36 @@
+int a[100];
+void sort(int n){
+	int i,j;
+	int temp;
+	for(i=0;i<n;i=i+1)
+		for(j=i;j<n;j=j+1)
+			if(a[i]>=a[j])
+			{
+				temp=a[i];
+				a[i]=a[j];
+				a[j]=temp;
+			}
+}
+void output(int n){
+	int i;
+	for(i=0;i<n;i=i+1)
+	{
+		
+		printf(a[i]);
+		printf(" ");
+	}
+}
+void main(){
+	int i;
+	int k;
+	int n;
+	scanf(n);
+	printf("Please enter n integers to sort:");
+	for(i=0;i<n;i=i+1)
+	{
+		scanf(k);
+		a[i]=k;
+	}
+	sort(n);
+	output(n);
+}

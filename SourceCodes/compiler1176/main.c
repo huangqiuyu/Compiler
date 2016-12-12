@@ -1256,6 +1256,10 @@ void getsym()
 
 int openfile()
 {
+    freopen("C:\\Users\\forever\\Documents\\GitHub\\Compiler\\SourceCodes\\test.txt","r",stdin);
+    isFileEnd = FALSE;
+    return 1;
+    /*
     file = (char*)malloc((sizeof(char))*MAXPATH);
     printf("please input the test file path\n");
 
@@ -1271,6 +1275,8 @@ int openfile()
          printf("success to open the test file\n");
          return 1;
     }
+
+    */
 }
 
 
@@ -5939,7 +5945,7 @@ void genemips()
         {
             rstabid = medstack[rs].tbindex;
             //全局变量
-            if(table[rstabid].type==2)
+            if(table[rstabid].obj==2)
             {
                 printf("%s: .word 0 \n",table[rstabid].name);
             }
@@ -7438,17 +7444,89 @@ void genemips()
                 break;
             case WRT:
 
-                //write string
+                rsint = FALSE;
+                rtint = FALSE;
+
+
                 if(medstack[rs].tbindex!=-1)
                 {
                     rstabid = medstack[rs].tbindex;
-                    //写表达式的值
-                    if(table[rstabid].obj!=5)
+                    //rs为常数
+                    if(table[rstabid].obj==1)
                     {
+                        rsint = TRUE;
+                        if(table[rstabid].type==1)
+                            rsv = table[rstabid].valuei;
+                        else
+                            rsv = table[rstabid].valuec;
+
+                    }
+
+                }
+
+                if(rsint==TRUE)
+                {
+                    if(table[rstabid].type==1)
+                    {
+                        printf("li $v0 1\n");
+                        printf("addi $a0 $0 %d\n",rsv);
+                        printf("syscall\n");
+                    }
+
+                    else
+                    {
+                        printf("li $v0 11\n");
+                        printf("addi $a0 $0 %d\n",rsv);
+                        printf("syscall\n");
+                     }
+
+                }
+
+                else
+                {
+                    //write string
+                    if(medstack[rs].tbindex!=-1)
+                    {
+                        rstabid = medstack[rs].tbindex;
+                        //写表达式的值
+                        if(table[rstabid].obj!=5)
+                        {
+                            rsreg = calreg(1,rs);
+
+                            //写int
+                            if(table[rstabid].type==1)
+                            {
+                                printf("li $v0 1\n");
+                                printf("move $a0 $%d\n",rsreg);
+                                printf("syscall\n");
+
+                            }
+                            //写char
+                            else if(table[rstabid].type==2)
+                            {
+                                printf("li $v0 11\n");
+                                printf("move $a0 $%d\n",rsreg);
+                                printf("syscall\n");
+                            }
+
+
+                        }
+                        //写字符串
+                        else
+                        {
+                            j = table[rstabid].locate;
+                            printf("li $v0 4\n");
+                            printf("la $a0 $str%d\n",j);
+                            printf("syscall\n");
+                        }
+                    }
+                    else if(medstack[rs].tpindex!=-1)
+                    {
+                        rstmpid = medstack[rs].tpindex;
                         rsreg = calreg(1,rs);
 
                         //写int
-                        if(table[rstabid].type==1)
+                        if(tempv[rstmpid].type==1)
                         {
                             printf("li $v0 1\n");
                             printf("move $a0 $%d\n",rsreg);
@@ -7456,47 +7534,18 @@ void genemips()
 
                         }
                         //写char
-                        else if(table[rstabid].type==2)
+                        else if(tempv[rstmpid].type==2)
                         {
                             printf("li $v0 11\n");
                             printf("move $a0 $%d\n",rsreg);
                             printf("syscall\n");
                         }
 
+                    }
 
-                    }
-                    //写字符串
-                    else
-                    {
-                        j = table[rstabid].locate;
-                        printf("li $v0 4\n");
-                        printf("la $a0 $str%d\n",j);
-                        printf("syscall\n");
-                    }
-                }
-                else if(medstack[rs].tpindex!=-1)
-                {
-                    rstmpid = medstack[rs].tpindex;
-                    rsreg = calreg(1,rs);
 
-                    //写int
-                    if(tempv[rstmpid].type==1)
-                    {
-                        printf("li $v0 1\n");
-                        printf("move $a0 $%d\n",rsreg);
-                        printf("syscall\n");
-
-                    }
-                    //写char
-                    else if(tempv[rstmpid].type==2)
-                    {
-                        printf("li $v0 11\n");
-                        printf("move $a0 $%d\n",rsreg);
-                        printf("syscall\n");
-                    }
 
                 }
-
 
 
                 break;
@@ -7527,10 +7576,6 @@ int main()
 
     program();
 
-
-
-
-
     genblocks();
     dag();
     alloc();
@@ -7542,19 +7587,10 @@ int main()
 
     genemips();
 
-    //printgetsym();
 
-    /*
-    if(freopen("output.txt","w",stdout)==NULL)
-    {
-        printf("file to open the output file\n");
-        return 1;
-    }
-    */
 
-    //printf("hello world\n");
-   // free(file1);
-    free(file);
+   // free(file);
+
     return 0;
 }
 

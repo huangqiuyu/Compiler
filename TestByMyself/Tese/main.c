@@ -32,9 +32,10 @@ void dowhile()
 		j = 0;
 		do{
 			a[j] = a[j]+i;
-			j = j+1;
-			printf(a[j]);
+
+			printf("%d",a[j]);
 			printf("  ");
+			j = j+1;
 
 		}while(j<30);
 		i = i+1;
@@ -66,6 +67,12 @@ void forfun()
 		}
 
 	}
+
+	for(i=0;i<30;i=i+1)
+    {
+        printf("%d",a[i]);
+		printf("  ");
+    }
 
 
 }
@@ -100,7 +107,7 @@ void loop()
 	printf(" before: ");
 	for(i=0;i<30;i=i+1)
 	{
-		printf(a[i]);
+		printf("%d",a[i]);
 		printf("  ");
 
 	}
@@ -126,7 +133,7 @@ void loop()
 	i=0;
 	do{
 
-		printf(a[i]);
+		printf("%d",a[i]);
 		printf("  ");
 		i = i+1;
 	}while(i<30);

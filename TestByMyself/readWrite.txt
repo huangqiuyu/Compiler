@@ -1,0 +1,65 @@
+const int k = 10;
+const int t = 22,y = 403,i = 0,j = 0;
+const char cca = 'a';
+const char ccb = 'b',ccc = 'c';
+
+void read()
+{
+	const int NUMBER=14061176;
+	const char C = 'A';
+	int i,j;
+	char c,s;
+	
+	printf(NUMBER);
+	printf(cca);
+	printf(ccb);
+	printf(ccc);
+	printf(y);
+	
+	printf(" please input one number:");
+    scanf(i);
+	printf("  the number you input is:",i);
+	
+	printf("  please input one character:");
+    scanf(c);
+    printf("  the character you input is:",c);
+	
+	printf("  please input one number and one character:");
+    scanf(j,s);
+    printf("  the number you input is:",j);
+    printf("  the character you input is:",s);
+	
+	printf("  please input one character and one number:");
+    scanf(s,j);
+    printf("  the character you input is:",s);
+    printf("  the number you input is:",j);
+	
+	printf("  please input two character and two number:");
+	scanf(i,j,c,s);
+	printf(i);
+	printf(j);
+	printf(c);
+	printf(s);
+	
+	
+	
+	printf("  the sum of your input numbers ");
+	scanf(i,j);
+	
+    printf(i+j);
+	
+	printf("  ");
+	printf(i+j+i*j+i*i+j*j+1+10-13-j/2-i/2+j*j*i*j/2);
+	
+	printf("  calculate four numbers ");
+	printf(i+k*t*j/2-j-i*j+i*i+(i*j+3)*9/3*10+(j+t)*i*j*(k+2-j)-j*j+1+10-13-j/2-i/2+j*j*i*j/2);
+	
+	printf("  the const c is: ",C);
+	
+	
+}
+
+void main()
+{
+	read();
+}
